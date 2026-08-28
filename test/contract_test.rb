@@ -17,10 +17,18 @@ class ContractTest < Minitest::Test
   end
 
   def test_ui_uses_the_same_stable_plugin_id
-    %w[BarWidget.qml Panel.qml].each do |file|
+    %w[Service.qml BarWidget.qml Panel.qml].each do |file|
       source = File.read(File.join(ROOT, file))
       assert source.include?("io.github.jsidoryn.whoop"), "#{file} must use the manifest id"
     end
+  end
+
+  def test_ipc_is_owned_by_the_single_shared_service
+    service = File.read(File.join(ROOT, "Service.qml"))
+    panel = File.read(File.join(ROOT, "Panel.qml"))
+
+    assert service.include?("IpcHandler {")
+    refute panel.include?("IpcHandler {")
   end
 
   def test_qml_contains_no_literal_hex_colors_or_plaintext_credentials

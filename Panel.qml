@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Model.js" as Model
@@ -109,30 +108,6 @@ Panel {
     interval: 5000
     repeat: false
     onTriggered: root.confirmDisconnect = false
-  }
-
-  IpcHandler {
-    target: root.ipcTarget
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function show(): void { root.open() }
-    function hide(): void { root.close() }
-    function toggle(): void { root.toggle() }
-    function refresh(): string { if (service) service.refresh(false); return "ok" }
-    function setupFinished(): string { if (service) service.refresh(true); return "ok" }
-    function demo(): string { if (service) service.nextDemo(); root.open(); return "ok" }
-    function status(): string {
-      return JSON.stringify({
-        state: service ? service.status : "loading",
-        connected: root.connected,
-        mode: root.snapshotData.mode,
-        recovery: recovery.score,
-        strain: cycle.strain,
-        sleep: sleep.performance,
-        refreshing: root.refreshing,
-        error: service ? (service.lastError || "") : ""
-      })
-    }
   }
 
   KeyboardPanel {

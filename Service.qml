@@ -6,6 +6,7 @@ import "Model.js" as Model
 Item {
   id: root
 
+  property var shell: null
   property var settings: ({})
   property var snapshot: ({
     state: "loading",
@@ -31,6 +32,7 @@ Item {
   property double lastFetchStartedAt: 0
   property bool fetchTimedOut: false
 
+  readonly property string pluginId: "io.github.jsidoryn.whoop"
   readonly property string helper: decodeURIComponent(Qt.resolvedUrl("bin/whoop").toString().replace(/^file:\/\//, ""))
   readonly property bool demoMode: snapshot && snapshot.mode === "demo"
   readonly property bool hasData: snapshot && snapshot.recovery !== undefined
@@ -119,6 +121,34 @@ Item {
     disconnectProcess.running = true
   }
 
+  function openPanel() {
+    if (shell && typeof shell.summon === "function") shell.summon(pluginId, "{}")
+  }
+
+  function closePanel() {
+    if (shell && typeof shell.hide === "function") shell.hide(pluginId)
+  }
+
+  function togglePanel() {
+    if (shell && typeof shell.toggle === "function") shell.toggle(pluginId, "{}")
+  }
+
+  function statusJson() {
+    var recovery = snapshot && snapshot.recovery ? snapshot.recovery : ({})
+    var cycle = snapshot && snapshot.cycle ? snapshot.cycle : ({})
+    var sleep = snapshot && snapshot.sleep ? snapshot.sleep : ({})
+    return JSON.stringify({
+      state: status,
+      connected: connected,
+      mode: snapshot && snapshot.mode ? snapshot.mode : "demo",
+      recovery: recovery.score,
+      strain: cycle.strain,
+      sleep: sleep.performance,
+      refreshing: refreshing,
+      error: lastError || ""
+    })
+  }
+
   function apply(raw) {
     var parsed
     try {
@@ -179,6 +209,57 @@ Item {
       root.deferredScenario = ""
       if (action === "demo") root.startDemo(scenario)
       else if (action === "refresh") root.refresh(true)
+    }
+  }
+
+  // The service is instantiated once by the shell. Keeping IPC here avoids
+  // competing handlers when the bar creates one widget per monitor.
+  IpcHandler {
+    target: root.pluginId
+
+    function open(): string {
+      root.openPanel()
+      return "ok"
+    }
+
+    function close(): string {
+      root.closePanel()
+      return "ok"
+    }
+
+    function show(): string {
+      root.openPanel()
+      return "ok"
+    }
+
+    function hide(): string {
+      root.closePanel()
+      return "ok"
+    }
+
+    function toggle(): string {
+      root.togglePanel()
+      return "ok"
+    }
+
+    function refresh(): string {
+      root.refresh(false)
+      return "ok"
+    }
+
+    function setupFinished(): string {
+      root.refresh(true)
+      return "ok"
+    }
+
+    function demo(): string {
+      root.nextDemo()
+      root.openPanel()
+      return "ok"
+    }
+
+    function status(): string {
+      return root.statusJson()
     }
   }
 
