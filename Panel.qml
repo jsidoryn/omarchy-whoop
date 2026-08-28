@@ -19,20 +19,12 @@ Panel {
   property bool confirmDisconnect: false
   property double nowMs: Date.now()
 
-  property QtObject dummyService: QtObject {
-    property var snapshot: ({ state: "loading", mode: "demo", message: "Loading WHOOP", recovery: ({ score: null }), cycle: ({}), sleep: ({}), week: [] })
-    property string state: "loading"
-    property string message: "Loading WHOOP"
-    property bool refreshing: false
-    property bool demoMode: true
-    property string helper: ""
-    function refresh() {}
-    function nextDemo() {}
-    function disconnect() {}
-  }
-
-  readonly property var service: whoopService || root.dummyService
-  readonly property var snapshotData: service.snapshot || root.dummyService.snapshot
+  readonly property var fallbackSnapshot: ({
+    state: "loading", mode: "demo", message: "Loading WHOOP",
+    recovery: ({ score: null }), cycle: ({}), sleep: ({}), week: []
+  })
+  readonly property var service: whoopService
+  readonly property var snapshotData: service && service.snapshot ? service.snapshot : fallbackSnapshot
   readonly property var recovery: snapshotData.recovery || ({})
   readonly property var cycle: snapshotData.cycle || ({})
   readonly property var sleep: snapshotData.sleep || ({})
@@ -46,10 +38,11 @@ Panel {
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool showingDemo: snapshotData.mode === "demo"
   readonly property bool pending: snapshotData.state === "pending"
-  readonly property bool hasError: service.state === "error"
+  readonly property bool hasError: service && service.state === "error"
+  readonly property bool refreshing: service ? service.refreshing === true : false
 
   function launchSetup() {
-    if (!bar || service.helper === "") return
+    if (!bar || !service || service.helper === "") return
     var command = "omarchy-launch-floating-terminal-with-presentation " + Util.shellQuote(service.helper) + " setup"
     bar.run(command)
     close()
@@ -62,7 +55,7 @@ Panel {
       return
     }
     confirmDisconnect = false
-    service.disconnect()
+    if (service) service.disconnect()
   }
 
   function setDemoSetting(enabled) {
@@ -73,14 +66,14 @@ Panel {
     hostWidget.settings = entry
     settings = entry
     if (bar && bar.shell && typeof bar.shell.updateEntryInline === "function") bar.shell.updateEntryInline(moduleName, entry)
-    Qt.callLater(service.refresh)
+    if (service) Qt.callLater(service.refresh)
   }
 
   onOpenedChanged: if (opened) {
     nowMs = Date.now()
     confirmDisconnect = false
     if (panelFlick) panelFlick.contentY = 0
-    service.refresh()
+    if (service) service.refresh()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -105,18 +98,18 @@ Panel {
     function show(): void { root.open() }
     function hide(): void { root.close() }
     function toggle(): void { root.toggle() }
-    function refresh(): string { service.refresh(); return "ok" }
-    function setupFinished(): string { service.refresh(); return "ok" }
-    function demo(): string { service.nextDemo(); root.open(); return "ok" }
+    function refresh(): string { if (service) service.refresh(); return "ok" }
+    function setupFinished(): string { if (service) service.refresh(); return "ok" }
+    function demo(): string { if (service) service.nextDemo(); root.open(); return "ok" }
     function status(): string {
       return JSON.stringify({
-        state: service.state,
+        state: service ? service.state : "loading",
         mode: root.snapshotData.mode,
         recovery: recovery.score,
         strain: cycle.strain,
         sleep: sleep.performance,
-        refreshing: service.refreshing,
-        error: service.lastError || ""
+        refreshing: root.refreshing,
+        error: service ? (service.lastError || "") : ""
       })
     }
   }
@@ -137,10 +130,10 @@ Panel {
       blocked: connectButton.activeFocus || demoButton.activeFocus || liveButton.activeFocus || disconnectButton.activeFocus
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
-      onActivateRequested: service.refresh()
+      onActivateRequested: if (service) service.refresh()
       onTextKey: function(text) {
-        if (text === "r" || text === "R") service.refresh()
-        else if (text === "d" || text === "D") service.nextDemo()
+        if ((text === "r" || text === "R") && service) service.refresh()
+        else if ((text === "d" || text === "D") && service) service.nextDemo()
         else if ((text === "c" || text === "C") && root.showingDemo) root.launchSetup()
       }
 
@@ -223,7 +216,7 @@ Panel {
 
               Text {
                 Layout.fillWidth: true
-                text: root.hasError ? service.message : String(root.snapshotData.message || "")
+                text: root.hasError && service ? service.message : String(root.snapshotData.message || "")
                 textFormat: Text.PlainText
                 color: root.hasError ? root.urgent : root.dim
                 font.family: root.fontFamily
@@ -233,7 +226,7 @@ Panel {
 
               Text {
                 Layout.fillWidth: true
-                text: service.refreshing ? "Refreshing…" : Model.freshness(root.snapshotData.fetchedAt, root.nowMs)
+                text: root.refreshing ? "Refreshing…" : Model.freshness(root.snapshotData.fetchedAt, root.nowMs)
                 textFormat: Text.PlainText
                 color: root.dim
                 font.family: root.fontFamily
@@ -246,8 +239,8 @@ Panel {
               tooltipText: "Refresh · R"
               foreground: root.foreground
               fontFamily: root.fontFamily
-              enabled: !service.refreshing
-              onClicked: service.refresh()
+              enabled: !root.refreshing
+              onClicked: if (service) service.refresh()
             }
           }
 
@@ -311,7 +304,7 @@ Panel {
                   foreground: root.foreground
                   accent: Color.accent
                   fontFamily: root.fontFamily
-                  onClicked: service.nextDemo()
+                  onClicked: if (service) service.nextDemo()
                 }
 
                 Item { Layout.fillWidth: true }
