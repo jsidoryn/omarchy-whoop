@@ -19,8 +19,7 @@ Panel {
   property bool confirmDisconnect: false
   property double nowMs: Date.now()
 
-  QtObject {
-    id: dummyService
+  property QtObject dummyService: QtObject {
     property var snapshot: ({ state: "loading", mode: "demo", message: "Loading WHOOP", recovery: ({ score: null }), cycle: ({}), sleep: ({}), week: [] })
     property string state: "loading"
     property string message: "Loading WHOOP"
@@ -32,8 +31,8 @@ Panel {
     function disconnect() {}
   }
 
-  readonly property var service: whoopService || dummyService
-  readonly property var snapshotData: service.snapshot || dummyService.snapshot
+  readonly property var service: whoopService || root.dummyService
+  readonly property var snapshotData: service.snapshot || root.dummyService.snapshot
   readonly property var recovery: snapshotData.recovery || ({})
   readonly property var cycle: snapshotData.cycle || ({})
   readonly property var sleep: snapshotData.sleep || ({})
