@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$ROOT"
+
+for test_file in test/*_test.rb; do
+  /usr/bin/ruby -Itest "$test_file"
+done
+node --test tests/*.test.js
