@@ -22,6 +22,7 @@ Item {
   property string message: "Loading WHOOP"
   property bool refreshing: false
   property bool refreshQueued: false
+  property string pendingDemoScenario: ""
   property string lastError: ""
   property string demoScenario: "primed"
   property string _stdout: ""
@@ -83,11 +84,19 @@ Item {
 
   function showDemo(scenario) {
     demoScenario = String(scenario || "primed")
+    if (fetchProcess.running) {
+      pendingDemoScenario = demoScenario
+      return
+    }
+    startDemo(demoScenario)
+  }
+
+  function startDemo(scenario) {
     refreshing = true
+    lastError = ""
     _stdout = ""
     _stderr = ""
-    if (fetchProcess.running) fetchProcess.running = false
-    fetchProcess.command = [helper, "demo", demoScenario]
+    fetchProcess.command = [helper, "demo", String(scenario || "primed")]
     fetchProcess.running = true
   }
 
@@ -123,6 +132,7 @@ Item {
     snapshot = parsed
     state = nextState
     message = String(parsed.message || "")
+    lastError = ""
     if (parsed.demoScenario) demoScenario = String(parsed.demoScenario)
   }
 
@@ -159,6 +169,12 @@ Item {
         root.state = "error"
         root.message = "The WHOOP helper produced no data"
         root.lastError = root.message
+      }
+      if (root.pendingDemoScenario !== "") {
+        var scenario = root.pendingDemoScenario
+        root.pendingDemoScenario = ""
+        Qt.callLater(function() { root.startDemo(scenario) })
+        return
       }
       if (root.refreshQueued) {
         root.refreshQueued = false
