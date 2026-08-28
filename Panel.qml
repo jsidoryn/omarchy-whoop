@@ -33,10 +33,10 @@ Panel {
   }
 
   readonly property var service: whoopService || dummyService
-  readonly property var data: service.snapshot || dummyService.snapshot
-  readonly property var recovery: data.recovery || ({})
-  readonly property var cycle: data.cycle || ({})
-  readonly property var sleep: data.sleep || ({})
+  readonly property var snapshotData: service.snapshot || dummyService.snapshot
+  readonly property var recovery: snapshotData.recovery || ({})
+  readonly property var cycle: snapshotData.cycle || ({})
+  readonly property var sleep: snapshotData.sleep || ({})
   readonly property real recoveryScore: recovery.score === null || recovery.score === undefined ? -1 : Number(recovery.score)
   readonly property var band: Model.recoveryBand(recoveryScore >= 0 ? recoveryScore : null)
   readonly property color foreground: bar ? bar.foreground : Color.foreground
@@ -45,8 +45,8 @@ Panel {
   readonly property color scoreColor: band.colorRole === "positive" ? Color.accent
     : (band.colorRole === "urgent" ? urgent : (band.colorRole === "warning" ? foreground : Color.muted))
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property bool showingDemo: data.mode === "demo"
-  readonly property bool pending: data.state === "pending"
+  readonly property bool showingDemo: snapshotData.mode === "demo"
+  readonly property bool pending: snapshotData.state === "pending"
   readonly property bool hasError: service.state === "error"
 
   function launchSetup() {
@@ -112,7 +112,7 @@ Panel {
     function status(): string {
       return JSON.stringify({
         state: service.state,
-        mode: data.mode,
+        mode: root.snapshotData.mode,
         recovery: recovery.score,
         strain: cycle.strain,
         sleep: sleep.performance,
@@ -224,7 +224,7 @@ Panel {
 
               Text {
                 Layout.fillWidth: true
-                text: root.hasError ? service.message : String(data.message || "")
+                text: root.hasError ? service.message : String(root.snapshotData.message || "")
                 textFormat: Text.PlainText
                 color: root.hasError ? root.urgent : root.dim
                 font.family: root.fontFamily
@@ -234,7 +234,7 @@ Panel {
 
               Text {
                 Layout.fillWidth: true
-                text: service.refreshing ? "Refreshing…" : Model.freshness(data.fetchedAt, root.nowMs)
+                text: service.refreshing ? "Refreshing…" : Model.freshness(root.snapshotData.fetchedAt, root.nowMs)
                 textFormat: Text.PlainText
                 color: root.dim
                 font.family: root.fontFamily
@@ -372,7 +372,7 @@ Panel {
 
             WeekStrip {
               Layout.fillWidth: true
-              values: Model.safeWeek(root.data)
+              values: Model.safeWeek(root.snapshotData)
               foreground: root.foreground
               accent: Color.accent
               urgent: root.urgent
