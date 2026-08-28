@@ -17,6 +17,10 @@ BarWidget {
     if (typeof injectPanel === "function") injectPanel()
   }
 
+  function scheduleSync() {
+    syncTimer.restart()
+  }
+
   function injectPanel() {
     var target = panelLoader.item
     if (!target) return
@@ -35,10 +39,17 @@ BarWidget {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
-  onBarChanged: Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
-  onSettingsChanged: Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
-  onWhoopServiceChanged: Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
-  Component.onCompleted: Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
+  onBarChanged: root.scheduleSync()
+  onSettingsChanged: root.scheduleSync()
+  onWhoopServiceChanged: root.scheduleSync()
+  Component.onCompleted: root.scheduleSync()
+
+  Timer {
+    id: syncTimer
+    interval: 0
+    repeat: false
+    onTriggered: root.syncService()
+  }
 
   Loader {
     id: panelLoader
@@ -47,7 +58,7 @@ BarWidget {
     visible: false
     onLoaded: {
       if (typeof root.injectPanel === "function") root.injectPanel()
-      Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
+      root.scheduleSync()
     }
   }
 

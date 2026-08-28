@@ -23,6 +23,8 @@ Item {
   property bool refreshing: false
   property bool refreshQueued: false
   property string pendingDemoScenario: ""
+  property string deferredAction: ""
+  property string deferredScenario: ""
   property string lastError: ""
   property string demoScenario: "primed"
   property string _stdout: ""
@@ -144,6 +146,20 @@ Item {
     onTriggered: root.refresh()
   }
 
+  Timer {
+    id: deferredTimer
+    interval: 0
+    repeat: false
+    onTriggered: {
+      var action = root.deferredAction
+      var scenario = root.deferredScenario
+      root.deferredAction = ""
+      root.deferredScenario = ""
+      if (action === "demo") root.startDemo(scenario)
+      else if (action === "refresh") root.refresh()
+    }
+  }
+
   Process {
     id: fetchProcess
     running: false
@@ -171,14 +187,16 @@ Item {
         root.lastError = root.message
       }
       if (root.pendingDemoScenario !== "") {
-        var scenario = root.pendingDemoScenario
+        root.deferredScenario = root.pendingDemoScenario
         root.pendingDemoScenario = ""
-        Qt.callLater(function() { root.startDemo(scenario) })
+        root.deferredAction = "demo"
+        deferredTimer.restart()
         return
       }
       if (root.refreshQueued) {
         root.refreshQueued = false
-        Qt.callLater(root.refresh)
+        root.deferredAction = "refresh"
+        deferredTimer.restart()
       }
     }
   }

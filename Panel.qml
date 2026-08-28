@@ -66,7 +66,7 @@ Panel {
     hostWidget.settings = entry
     settings = entry
     if (bar && bar.shell && typeof bar.shell.updateEntryInline === "function") bar.shell.updateEntryInline(moduleName, entry)
-    if (service) Qt.callLater(service.refresh)
+    if (service) settingsRefreshTimer.restart()
   }
 
   onOpenedChanged: if (opened) {
@@ -74,7 +74,21 @@ Panel {
     confirmDisconnect = false
     if (panelFlick) panelFlick.contentY = 0
     if (service) service.refresh()
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    focusTimer.restart()
+  }
+
+  Timer {
+    id: settingsRefreshTimer
+    interval: 0
+    repeat: false
+    onTriggered: if (service) service.refresh()
+  }
+
+  Timer {
+    id: focusTimer
+    interval: 0
+    repeat: false
+    onTriggered: keyCatcher.forceActiveFocus()
   }
 
   Timer {
