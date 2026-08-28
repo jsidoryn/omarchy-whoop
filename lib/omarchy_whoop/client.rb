@@ -15,8 +15,6 @@ module OmarchyWhoop
       @lock_path = lock_path || File.join(ENV.fetch("XDG_RUNTIME_DIR", "/tmp"), "omarchy-whoop-refresh.lock")
     end
 
-    def connected? = !@store.read.nil?
-
     def valid_access_token
       with_lock do
         bundle = @store.read
@@ -71,4 +69,3 @@ module OmarchyWhoop
     end
   end
 end
-

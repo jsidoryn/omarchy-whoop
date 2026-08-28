@@ -17,7 +17,7 @@ class ContractTest < Minitest::Test
   end
 
   def test_ui_uses_the_same_stable_plugin_id
-    %w[BarWidget.qml Panel.qml Service.qml].each do |file|
+    %w[BarWidget.qml Panel.qml].each do |file|
       source = File.read(File.join(ROOT, file))
       assert source.include?("io.github.jsidoryn.whoop"), "#{file} must use the manifest id"
     end

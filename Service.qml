@@ -6,8 +6,6 @@ import "Model.js" as Model
 Item {
   id: root
 
-  property var shell: null
-  property var manifest: null
   property var settings: ({})
   property var snapshot: ({
     state: "loading",
@@ -30,7 +28,6 @@ Item {
   property string _stdout: ""
   property string _stderr: ""
 
-  readonly property string pluginId: manifest && manifest.id ? String(manifest.id) : "io.github.jsidoryn.whoop"
   readonly property string helper: Qt.resolvedUrl("bin/whoop").toString().replace(/^file:\/\//, "")
   readonly property bool demoMode: snapshot && snapshot.mode === "demo"
   readonly property bool hasData: snapshot && snapshot.recovery !== undefined

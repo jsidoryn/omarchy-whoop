@@ -4,7 +4,6 @@ require "io/console"
 require "json"
 require "open3"
 require "securerandom"
-require "shellwords"
 
 module OmarchyWhoop
   class Cli

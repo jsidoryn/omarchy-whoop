@@ -37,7 +37,6 @@ Panel {
     : (band.colorRole === "urgent" ? urgent : (band.colorRole === "warning" ? foreground : Color.muted))
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool showingDemo: snapshotData.mode === "demo"
-  readonly property bool pending: snapshotData.state === "pending"
   readonly property bool hasError: service && service.state === "error"
   readonly property bool refreshing: service ? service.refreshing === true : false
 
