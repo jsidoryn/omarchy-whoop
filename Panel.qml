@@ -9,8 +9,8 @@ import "Model.js" as Model
 Panel {
   id: root
 
-  moduleName: "jsidoryn.whoop"
-  ipcTarget: "jsidoryn.whoop"
+  moduleName: "io.github.jsidoryn.whoop"
+  ipcTarget: "io.github.jsidoryn.whoop"
   manageIpc: false
 
   property var anchorItem: null

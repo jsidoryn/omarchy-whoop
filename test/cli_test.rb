@@ -8,6 +8,43 @@ class CliTest < Minitest::Test
     def read = nil
   end
 
+  class SetupStore
+    attr_reader :bundle
+    def available? = true
+    def read = @bundle&.dup
+    def write(value) = @bundle = value.dup
+  end
+
+  class SetupOAuth
+    attr_reader :exchange_args, :authorization_args
+
+    def authorization_url(**args)
+      @authorization_args = args
+      "https://api.prod.whoop.com/oauth/oauth2/auth?state=#{args.fetch(:state)}"
+    end
+
+    def callback_code(callback, expected_state:)
+      raise "unexpected callback" unless callback == "whoop://omarchy/callback?code=ready"
+      expected_state
+    end
+
+    def exchange(**args)
+      @exchange_args = args
+      {"access_token" => "access-token", "refresh_token" => "refresh-token", "expires_in" => 3600}
+    end
+  end
+
+  class SetupApi
+    def snapshot(_token)
+      {
+        cycle: {"id" => 1, "score_state" => "SCORED", "score" => {"strain" => 7.2}},
+        recovery: {"score_state" => "SCORED", "score" => {"recovery_score" => 81}},
+        sleep: {"score_state" => "SCORED", "score" => {"sleep_performance_percentage" => 90}},
+        history: {"records" => []}
+      }
+    end
+  end
+
   def test_snapshot_preserves_the_requested_fallback_demo
     output = StringIO.new
     status = OmarchyWhoop::Cli.new(
@@ -34,5 +71,39 @@ class CliTest < Minitest::Test
     ).run
 
     assert_equal "primed", JSON.parse(output.string).fetch("demoScenario")
+  end
+
+  def test_setup_guides_oauth_without_printing_credentials
+    input = StringIO.new("\nclient-id\nclient-secret\nwhoop://omarchy/callback?code=ready\n")
+    output = StringIO.new
+    store = SetupStore.new
+    oauth = SetupOAuth.new
+    opened = []
+    notified = []
+
+    status = OmarchyWhoop::Cli.new(
+      ["setup"],
+      input: input,
+      output: output,
+      error: StringIO.new,
+      store: store,
+      oauth: oauth,
+      api: SetupApi.new,
+      opener: ->(url) { opened << url },
+      notifier: ->(method) { notified << method }
+    ).run
+
+    assert_equal 0, status
+    assert_equal OmarchyWhoop::Cli::REDIRECT_URI, oauth.authorization_args.fetch(:redirect_uri)
+    assert_equal 8, oauth.authorization_args.fetch(:state).length
+    assert_equal "client-id", store.bundle.fetch("client_id")
+    assert_equal "client-secret", store.bundle.fetch("client_secret")
+    assert_equal "refresh-token", store.bundle.fetch("refresh_token")
+    assert_equal 1, opened.length
+    assert_equal ["setupFinished"], notified
+    assert_match(/Enable these scopes/, output.string)
+    assert_match(/whoop:\/\/omarchy\/callback/, output.string)
+    refute output.string.include?("client-secret")
+    refute output.string.include?("refresh-token")
   end
 end

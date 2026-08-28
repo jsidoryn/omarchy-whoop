@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "jsidoryn.whoop",
+  "id": "io.github.jsidoryn.whoop",
   "name": "WHOOP",
   "version": "0.1.0",
-  "author": "Josh Sidoryn",
+  "author": "Jason Sidoryn",
   "license": "MIT",
   "description": "Recovery, strain, and sleep from WHOOP in the Omarchy bar.",
   "kinds": ["service", "bar-widget"],
@@ -41,4 +41,3 @@
     ]
   }
 }
-

@@ -10,7 +10,17 @@ module OmarchyWhoop
   class Cli
     REDIRECT_URI = "whoop://omarchy/callback"
 
-    def initialize(argv, input: $stdin, output: $stdout, error: $stderr, store: SecretStore.new, oauth: OAuth.new, api: Api.new)
+    def initialize(
+      argv,
+      input: $stdin,
+      output: $stdout,
+      error: $stderr,
+      store: SecretStore.new,
+      oauth: OAuth.new,
+      api: Api.new,
+      opener: ->(url) { system("xdg-open", url, out: File::NULL, err: File::NULL) },
+      notifier: ->(method) { system("omarchy-shell", "-q", "io.github.jsidoryn.whoop", method, out: File::NULL, err: File::NULL) }
+    )
       @argv = argv.dup
       @input = input
       @output = output
@@ -18,6 +28,8 @@ module OmarchyWhoop
       @store = store
       @oauth = oauth
       @api = api
+      @opener = opener
+      @notifier = notifier
     end
 
     def run
@@ -82,7 +94,7 @@ module OmarchyWhoop
       state = SecureRandom.alphanumeric(8)
       url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:)
       @output.puts "\nOpening WHOOP authorization in your browser…"
-      system("xdg-open", url, out: File::NULL, err: File::NULL)
+      @opener.call(url)
       @output.puts <<~TEXT
 
         Approve access in WHOOP. Your browser may say it cannot open the final
@@ -156,7 +168,7 @@ module OmarchyWhoop
     def emit(value) = @output.puts(JSON.generate(value))
 
     def notify_shell(method)
-      system("omarchy-shell", "-q", "jsidoryn.whoop", method, out: File::NULL, err: File::NULL)
+      @notifier.call(method)
     end
   end
 end

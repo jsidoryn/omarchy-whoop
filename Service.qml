@@ -27,7 +27,7 @@ Item {
   property string _stdout: ""
   property string _stderr: ""
 
-  readonly property string pluginId: manifest && manifest.id ? String(manifest.id) : "jsidoryn.whoop"
+  readonly property string pluginId: manifest && manifest.id ? String(manifest.id) : "io.github.jsidoryn.whoop"
   readonly property string helper: Qt.resolvedUrl("bin/whoop").toString().replace(/^file:\/\//, "")
   readonly property bool demoMode: snapshot && snapshot.mode === "demo"
   readonly property bool hasData: snapshot && snapshot.recovery !== undefined

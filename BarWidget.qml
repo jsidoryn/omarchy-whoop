@@ -6,7 +6,7 @@ import "Model.js" as Model
 BarWidget {
   id: root
 
-  moduleName: "jsidoryn.whoop"
+  moduleName: "io.github.jsidoryn.whoop"
 
   readonly property var whoopService: bar && bar.shell ? bar.shell.serviceFor(moduleName) : null
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
