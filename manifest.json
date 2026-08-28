@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "jsidoryn.whoop",
+  "name": "WHOOP",
+  "version": "0.1.0",
+  "author": "Josh Sidoryn",
+  "license": "MIT",
+  "description": "Recovery, strain, and sleep from WHOOP in the Omarchy bar.",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "WHOOP",
+    "description": "Today's recovery, strain, sleep, and seven-day trend.",
+    "category": "Health",
+    "aliases": ["whoop", "recovery", "sleep", "strain"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 600,
+      "forceDemo": false
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 300,
+        "max": 3600,
+        "step": 300,
+        "defaultValue": 600
+      },
+      {
+        "key": "forceDemo",
+        "type": "boolean",
+        "label": "Always show demo data",
+        "defaultValue": false
+      }
+    ]
+  }
+}
+
