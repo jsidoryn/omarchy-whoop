@@ -14,7 +14,7 @@ BarWidget {
 
   function syncService() {
     if (whoopService && typeof whoopService.configure === "function") whoopService.configure(settings)
-    injectPanel()
+    if (typeof injectPanel === "function") injectPanel()
   }
 
   function injectPanel() {
@@ -35,10 +35,10 @@ BarWidget {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
-  onBarChanged: Qt.callLater(root.syncService)
-  onSettingsChanged: Qt.callLater(root.syncService)
-  onWhoopServiceChanged: Qt.callLater(root.syncService)
-  Component.onCompleted: Qt.callLater(root.syncService)
+  onBarChanged: Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
+  onSettingsChanged: Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
+  onWhoopServiceChanged: Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
+  Component.onCompleted: Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
 
   Loader {
     id: panelLoader
@@ -46,8 +46,8 @@ BarWidget {
     source: Qt.resolvedUrl("Panel.qml")
     visible: false
     onLoaded: {
-      root.injectPanel()
-      Qt.callLater(root.syncService)
+      if (typeof root.injectPanel === "function") root.injectPanel()
+      Qt.callLater(function() { if (typeof root.syncService === "function") root.syncService() })
     }
   }
 
@@ -106,4 +106,3 @@ BarWidget {
     }
   }
 }
-

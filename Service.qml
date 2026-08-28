@@ -64,7 +64,7 @@ Item {
 
   function command() {
     if (forceDemo) return [helper, "demo", demoScenario]
-    return [helper, "snapshot"]
+    return [helper, "snapshot", "--fallback-demo", demoScenario]
   }
 
   function refresh() {

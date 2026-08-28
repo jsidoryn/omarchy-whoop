@@ -48,7 +48,8 @@ module OmarchyWhoop
     def snapshot
       scenario = option_value("--demo")
       return emit(Demo.snapshot(scenario || "primed")) if scenario
-      return emit(Demo.snapshot("primed").merge("message" => "Demo data · Connect WHOOP for your stats")) unless @store.read
+      fallback = option_value("--fallback-demo") || "primed"
+      return emit(Demo.snapshot(fallback).merge("message" => "Demo data · Connect WHOOP for your stats")) unless @store.read
 
       emit(Client.new(store: @store, oauth: @oauth, api: @api).snapshot)
     end
@@ -159,4 +160,3 @@ module OmarchyWhoop
     end
   end
 end
-
