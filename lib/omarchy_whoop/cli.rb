@@ -29,13 +29,14 @@ module OmarchyWhoop
       @api = api
       @opener = opener
       @notifier = notifier
+      @snapshot_connected = false
     end
 
     def run
       command = @argv.shift || "snapshot"
       case command
       when "snapshot" then snapshot
-      when "demo" then emit(Demo.snapshot(@argv.shift || "primed"))
+      when "demo" then emit(Demo.snapshot(@argv.shift || "primed", connected: connected?))
       when "setup" then setup
       when "status" then status
       when "disconnect" then disconnect
@@ -46,7 +47,7 @@ module OmarchyWhoop
       0
     rescue Error, KeyError, JSON::ParserError => error
       if command == "snapshot"
-        emit("schemaVersion" => 1, "state" => "error", "mode" => "live", "message" => error.message, "fetchedAt" => Time.now.utc.iso8601)
+        emit("schemaVersion" => 1, "state" => "error", "mode" => "live", "connected" => @snapshot_connected, "message" => error.message, "fetchedAt" => Time.now.utc.iso8601)
         0
       else
         @error.puts "WHOOP: #{error.message}"
@@ -58,10 +59,12 @@ module OmarchyWhoop
 
     def snapshot
       scenario = option_value("--demo")
-      return emit(Demo.snapshot(scenario || "primed")) if scenario
+      return emit(Demo.snapshot(scenario || "primed", connected: connected?)) if scenario
       fallback = option_value("--fallback-demo") || "primed"
-      return emit(Demo.snapshot(fallback).merge("message" => "Demo data · Connect WHOOP for your stats")) unless @store.read
+      bundle = @store.read
+      return emit(Demo.snapshot(fallback).merge("message" => "Demo data · Connect WHOOP for your stats")) unless bundle
 
+      @snapshot_connected = true
       emit(Client.new(store: @store, oauth: @oauth, api: @api).snapshot)
     end
 
@@ -93,7 +96,8 @@ module OmarchyWhoop
       state = SecureRandom.alphanumeric(8)
       url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:)
       @output.puts "\nOpening WHOOP authorization in your browser…"
-      @opener.call(url)
+      opened = @opener.call(url)
+      @output.puts "\nIf the browser did not open, visit:\n\n  #{url}" if opened == false
       @output.puts <<~TEXT
 
         Approve access in WHOOP. Your browser may say it cannot open the final
@@ -101,7 +105,7 @@ module OmarchyWhoop
         the browser's address bar and paste it below.
       TEXT
       callback = prompt("WHOOP callback URL: ").strip
-      code = @oauth.callback_code(callback, expected_state: state)
+      code = @oauth.callback_code(callback, expected_state: state, redirect_uri: REDIRECT_URI)
       tokens = @oauth.exchange(client_id:, client_secret:, redirect_uri: REDIRECT_URI, code:)
       bundle = {
         "client_id" => client_id,
@@ -112,12 +116,16 @@ module OmarchyWhoop
         "expires_at" => Time.now.to_i + tokens.fetch("expires_in").to_i,
         "scope" => tokens["scope"] || OAuth::SCOPES.join(" ")
       }
-      @store.write(bundle)
-      @output.puts "\nConnected. Fetching your first WHOOP snapshot…"
-      result = Client.new(store: @store, oauth: @oauth, api: @api).snapshot
-      @output.puts "Recovery: #{result.dig('recovery', 'score') || 'pending'} · Strain: #{result.dig('cycle', 'strain') || 'pending'} · Sleep: #{result.dig('sleep', 'performance') || 'pending'}"
-      notify_shell("setupFinished")
-      @output.puts "\nYou can close this terminal. The bar will update automatically."
+      client = Client.new(store: @store, oauth: @oauth, api: @api)
+      client.store_credentials(bundle)
+      begin
+        @output.puts "\nConnected. Fetching your first WHOOP snapshot…"
+        result = client.snapshot
+        @output.puts "Recovery: #{result.dig('recovery', 'score') || 'pending'} · Strain: #{result.dig('cycle', 'strain') || 'pending'} · Sleep: #{result.dig('sleep', 'performance') || 'pending'}"
+        @output.puts "\nYou can close this terminal. The bar will update automatically."
+      ensure
+        notify_shell("setupFinished")
+      end
     end
 
     def status
@@ -149,7 +157,11 @@ module OmarchyWhoop
     def secret_prompt(text)
       @output.print text
       @output.flush
-      value = if @input.respond_to?(:noecho) then @input.noecho(&:gets).to_s else @input.gets.to_s end
+      value = if @input.respond_to?(:tty?) && @input.tty? && @input.respond_to?(:noecho)
+        @input.noecho(&:gets).to_s
+      else
+        @input.gets.to_s
+      end
       @output.puts
       value
     end
@@ -165,6 +177,8 @@ module OmarchyWhoop
     end
 
     def emit(value) = @output.puts(JSON.generate(value))
+
+    def connected? = !@store.read.nil?
 
     def notify_shell(method)
       @notifier.call(method)

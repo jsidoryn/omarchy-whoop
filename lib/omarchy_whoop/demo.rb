@@ -13,7 +13,7 @@ module OmarchyWhoop
       "pending" => {score: nil, strain: 3.1, sleep: nil, hrv: nil, rhr: nil, label: "WHOOP is calculating recovery", history: [72, 81, 66, 58, 77, 69, 74]}
     }.freeze
 
-    def snapshot(name = "primed", now: Time.now.utc)
+    def snapshot(name = "primed", now: Time.now.utc, connected: false)
       scenario = SCENARIOS.key?(name.to_s) ? name.to_s : "primed"
       data = SCENARIOS.fetch(scenario)
       pending = data[:score].nil?
@@ -21,6 +21,7 @@ module OmarchyWhoop
         "schemaVersion" => 1,
         "state" => pending ? "pending" : "demo",
         "mode" => "demo",
+        "connected" => connected,
         "message" => data[:label],
         "fetchedAt" => now.iso8601,
         "demoScenario" => scenario,
@@ -39,4 +40,3 @@ module OmarchyWhoop
     end
   end
 end
-

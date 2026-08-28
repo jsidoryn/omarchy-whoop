@@ -26,9 +26,13 @@ class OAuthTest < Minitest::Test
 
   def test_callback_requires_matching_state
     oauth = OmarchyWhoop::OAuth.new(http: nil)
-    assert_equal "code-123", oauth.callback_code("whoop://omarchy/callback?code=code-123&state=Ab12Cd34", expected_state: "Ab12Cd34")
+    redirect_uri = "whoop://omarchy/callback"
+    assert_equal "code-123", oauth.callback_code("whoop://omarchy/callback?code=code-123&state=Ab12Cd34", expected_state: "Ab12Cd34", redirect_uri: redirect_uri)
     assert_raises(OmarchyWhoop::AuthError) do
-      oauth.callback_code("whoop://omarchy/callback?code=code-123&state=Wrong000", expected_state: "Ab12Cd34")
+      oauth.callback_code("whoop://omarchy/callback?code=code-123&state=Wrong000", expected_state: "Ab12Cd34", redirect_uri: redirect_uri)
+    end
+    assert_raises(OmarchyWhoop::AuthError) do
+      oauth.callback_code("https://example.com/callback?code=code-123&state=Ab12Cd34", expected_state: "Ab12Cd34", redirect_uri: redirect_uri)
     end
   end
 

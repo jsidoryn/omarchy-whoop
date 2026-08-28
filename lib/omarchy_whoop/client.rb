@@ -16,16 +16,11 @@ module OmarchyWhoop
     end
 
     def valid_access_token
-      with_lock do
-        bundle = @store.read
-        raise AuthError, "WHOOP is not connected." unless bundle
-        return bundle["access_token"] if bundle["access_token"] && bundle["expires_at"].to_i > @clock.call + TOKEN_SKEW
+      with_lock { valid_access_token_unlocked }
+    end
 
-        tokens = @oauth.refresh(bundle)
-        updated = bundle.merge(tokens).merge("expires_at" => @clock.call + tokens.fetch("expires_in").to_i)
-        @store.write(updated)
-        updated.fetch("access_token")
-      end
+    def store_credentials(bundle)
+      with_lock { @store.write(bundle) }
     end
 
     def snapshot
@@ -40,15 +35,19 @@ module OmarchyWhoop
     end
 
     def disconnect
-      bundle = @store.read
-      if bundle && bundle["access_token"]
+      with_lock do
+        bundle = @store.read
+        return true unless bundle
+
         begin
-          @api.revoke(bundle["access_token"])
-        rescue HttpError
+          @api.revoke(valid_access_token_unlocked(bundle))
+        rescue Error, KeyError
           # Local deletion must remain possible when offline or already revoked.
+        ensure
+          @store.clear
         end
+        true
       end
-      @store.clear
     end
 
     private
@@ -59,6 +58,23 @@ module OmarchyWhoop
         file.flock(File::LOCK_EX)
         yield
       end
+    end
+
+    def valid_access_token_unlocked(bundle = nil)
+      bundle ||= @store.read
+      raise AuthError, "WHOOP is not connected." unless bundle
+      return bundle["access_token"] if bundle["access_token"] && bundle["expires_at"].to_i > @clock.call + TOKEN_SKEW
+
+      tokens = @oauth.refresh(bundle)
+      updated = bundle.merge(tokens).merge("expires_at" => @clock.call + tokens.fetch("expires_in").to_i)
+      save_rotated_tokens(updated)
+      updated.fetch("access_token")
+    end
+
+    def save_rotated_tokens(bundle)
+      @store.write(bundle)
+    rescue ConfigurationError => error
+      raise AuthError, "WHOOP rotated its tokens, but the new credentials could not be saved. Unlock your keyring and reconnect WHOOP. (#{error.message})"
     end
 
     def expire_access_token

@@ -60,6 +60,10 @@ at_exit do
     warn "\n#{name}: #{error.class}: #{error.message}"
     warn error.backtrace.first(5).join("\n")
   end
+  if count.zero?
+    warn "No tests were discovered"
+    exit 1
+  end
   exit 1 unless failures.empty?
 end
 

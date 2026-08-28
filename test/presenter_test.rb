@@ -12,12 +12,13 @@ class PresenterTest < Minitest::Test
     result = OmarchyWhoop::Presenter.new.snapshot(cycle:, recovery:, sleep:, history:)
 
     assert_equal "ok", result.fetch("state")
+    assert_equal true, result.fetch("connected")
     assert_equal 82, result.dig("recovery", "score")
     assert_equal 61.4, result.dig("recovery", "hrvMs")
     assert_equal 12.7, result.dig("cycle", "strain")
     assert_equal 87, result.dig("sleep", "performance")
     assert_in_delta 7.5, result.dig("sleep", "actualHours"), 0.01
-    assert_equal [82, 67], result.fetch("week").map { |day| day.fetch("score") }
+    assert_equal [67, 82], result.fetch("week").map { |day| day.fetch("score") }
   end
 
   def test_pending_recovery_is_a_first_class_state
@@ -37,6 +38,7 @@ class PresenterTest < Minitest::Test
     %w[primed balanced strained pending].each do |scenario|
       result = OmarchyWhoop::Demo.snapshot(scenario)
       assert_equal "demo", result.fetch("mode")
+      assert_equal false, result.fetch("connected")
       assert_equal scenario, result.fetch("demoScenario")
       assert_equal 7, result.fetch("week").length
       assert result.key?("recovery")
@@ -44,5 +46,18 @@ class PresenterTest < Minitest::Test
       assert result.key?("sleep")
     end
   end
-end
 
+  def test_week_is_oldest_first_even_when_whoop_returns_newest_first
+    recovery = lambda do |date, score|
+      {"created_at" => date, "score_state" => "SCORED", "score" => {"recovery_score" => score}}
+    end
+    result = OmarchyWhoop::Presenter.new.snapshot(
+      cycle: {"id" => 1},
+      recovery: recovery.call("2026-08-29T06:00:00Z", 80),
+      sleep: {"score_state" => "PENDING_SCORE"},
+      history: {"records" => [recovery.call("2026-08-29T06:00:00Z", 80), recovery.call("2026-08-28T06:00:00Z", 65)]}
+    )
+
+    assert_equal [65, 80], result.fetch("week").map { |day| day.fetch("score") }
+  end
+end

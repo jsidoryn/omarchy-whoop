@@ -29,3 +29,8 @@ test("duration and freshness formatting stay compact", () => {
   assert.equal(Model.freshness(Date.now() - 90_000, Date.now()), "1m ago")
 })
 
+test("tooltip reports a refresh error instead of healthy stale data", () => {
+  const stale = { state: "ok", mode: "live", recovery: { score: 82 } }
+  assert.equal(Model.tooltip(stale, false, "error", "Could not reach WHOOP"), "Could not reach WHOOP")
+  assert.equal(Model.tooltip(stale, true, "error", "Could not reach WHOOP"), "Refreshing WHOOP")
+})

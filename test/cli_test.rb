@@ -16,16 +16,18 @@ class CliTest < Minitest::Test
   end
 
   class SetupOAuth
-    attr_reader :exchange_args, :authorization_args
+    attr_reader :exchange_args, :authorization_args, :callback_state
 
     def authorization_url(**args)
       @authorization_args = args
       "https://api.prod.whoop.com/oauth/oauth2/auth?state=#{args.fetch(:state)}"
     end
 
-    def callback_code(callback, expected_state:)
+    def callback_code(callback, expected_state:, redirect_uri:)
       raise "unexpected callback" unless callback == "whoop://omarchy/callback?code=ready"
-      expected_state
+      raise "unexpected redirect" unless redirect_uri == OmarchyWhoop::Cli::REDIRECT_URI
+      @callback_state = expected_state
+      "ready"
     end
 
     def exchange(**args)
@@ -42,6 +44,12 @@ class CliTest < Minitest::Test
         sleep: {"score_state" => "SCORED", "score" => {"sleep_performance_percentage" => 90}},
         history: {"records" => []}
       }
+    end
+  end
+
+  class FailingSetupApi < SetupApi
+    def snapshot(_token)
+      raise OmarchyWhoop::HttpError.new("WHOOP is temporarily unavailable", status: 503)
     end
   end
 
@@ -96,6 +104,7 @@ class CliTest < Minitest::Test
     assert_equal 0, status
     assert_equal OmarchyWhoop::Cli::REDIRECT_URI, oauth.authorization_args.fetch(:redirect_uri)
     assert_equal 8, oauth.authorization_args.fetch(:state).length
+    assert_equal oauth.authorization_args.fetch(:state), oauth.callback_state
     assert_equal "client-id", store.bundle.fetch("client_id")
     assert_equal "client-secret", store.bundle.fetch("client_secret")
     assert_equal "refresh-token", store.bundle.fetch("refresh_token")
@@ -105,5 +114,30 @@ class CliTest < Minitest::Test
     assert_match(/whoop:\/\/omarchy\/callback/, output.string)
     refute output.string.include?("client-secret")
     refute output.string.include?("refresh-token")
+  end
+
+  def test_setup_notifies_the_shell_even_when_the_first_fetch_fails
+    input = StringIO.new("\nclient-id\nclient-secret\nwhoop://omarchy/callback?code=ready\n")
+    output = StringIO.new
+    error = StringIO.new
+    store = SetupStore.new
+    notified = []
+
+    status = OmarchyWhoop::Cli.new(
+      ["setup"],
+      input: input,
+      output: output,
+      error: error,
+      store: store,
+      oauth: SetupOAuth.new,
+      api: FailingSetupApi.new,
+      opener: ->(_url) { true },
+      notifier: ->(method) { notified << method }
+    ).run
+
+    assert_equal 1, status
+    assert_equal ["setupFinished"], notified
+    assert_equal "refresh-token", store.bundle.fetch("refresh_token")
+    assert_match(/temporarily unavailable/i, error.string)
   end
 end

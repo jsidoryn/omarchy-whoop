@@ -53,8 +53,9 @@ function freshness(iso, nowMs) {
   return Math.floor(hours / 24) + "d ago"
 }
 
-function tooltip(snapshot, refreshing) {
+function tooltip(snapshot, refreshing, serviceStatus, lastError) {
   if (refreshing) return "Refreshing WHOOP"
+  if (serviceStatus === "error") return String(lastError || "WHOOP refresh failed")
   var data = snapshot || {}
   if (data.mode === "demo") return "WHOOP demo · " + recoveryBand(data.recovery && data.recovery.score).label
   if (data.state === "ok") return "Recovery " + barLabel(data) + " · " + recoveryBand(data.recovery && data.recovery.score).label

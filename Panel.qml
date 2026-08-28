@@ -37,7 +37,8 @@ Panel {
     : (band.colorRole === "urgent" ? urgent : (band.colorRole === "warning" ? foreground : Color.muted))
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool showingDemo: snapshotData.mode === "demo"
-  readonly property bool hasError: service && service.state === "error"
+  readonly property bool connected: service ? service.connected === true : false
+  readonly property bool hasError: service && service.status === "error"
   readonly property bool refreshing: service ? service.refreshing === true : false
 
   function launchSetup() {
@@ -68,11 +69,17 @@ Panel {
     if (service) settingsRefreshTimer.restart()
   }
 
+  function useLiveData() {
+    if (!service || !connected) return
+    if (settings && settings.forceDemo === true) setDemoSetting(false)
+    else service.refresh(true)
+  }
+
   onOpenedChanged: if (opened) {
     nowMs = Date.now()
     confirmDisconnect = false
     if (panelFlick) panelFlick.contentY = 0
-    if (service) service.refresh()
+    if (service) service.refresh(false)
     focusTimer.restart()
   }
 
@@ -80,7 +87,7 @@ Panel {
     id: settingsRefreshTimer
     interval: 0
     repeat: false
-    onTriggered: if (service) service.refresh()
+    onTriggered: if (service) service.refresh(true)
   }
 
   Timer {
@@ -111,12 +118,13 @@ Panel {
     function show(): void { root.open() }
     function hide(): void { root.close() }
     function toggle(): void { root.toggle() }
-    function refresh(): string { if (service) service.refresh(); return "ok" }
-    function setupFinished(): string { if (service) service.refresh(); return "ok" }
+    function refresh(): string { if (service) service.refresh(false); return "ok" }
+    function setupFinished(): string { if (service) service.refresh(true); return "ok" }
     function demo(): string { if (service) service.nextDemo(); root.open(); return "ok" }
     function status(): string {
       return JSON.stringify({
-        state: service ? service.state : "loading",
+        state: service ? service.status : "loading",
+        connected: root.connected,
         mode: root.snapshotData.mode,
         recovery: recovery.score,
         strain: cycle.strain,
@@ -143,11 +151,12 @@ Panel {
       blocked: connectButton.activeFocus || demoButton.activeFocus || liveButton.activeFocus || disconnectButton.activeFocus
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
-      onActivateRequested: if (service) service.refresh()
+      onActivateRequested: if (service) service.refresh(false)
       onTextKey: function(text) {
-        if ((text === "r" || text === "R") && service) service.refresh()
+        if ((text === "r" || text === "R") && service) service.refresh(false)
         else if ((text === "d" || text === "D") && service) service.nextDemo()
-        else if ((text === "c" || text === "C") && root.showingDemo) root.launchSetup()
+        else if ((text === "c" || text === "C") && root.showingDemo && !root.connected) root.launchSetup()
+        else if ((text === "l" || text === "L") && root.showingDemo && root.connected) root.useLiveData()
       }
 
       Flickable {
@@ -253,7 +262,7 @@ Panel {
               foreground: root.foreground
               fontFamily: root.fontFamily
               enabled: !root.refreshing
-              onClicked: if (service) service.refresh()
+              onClicked: if (service) service.refresh(false)
             }
           }
 
@@ -285,7 +294,9 @@ Panel {
 
               Text {
                 Layout.fillWidth: true
-                text: "Explore the panel now. Connect when your WHOOP developer app is ready. No sample value is written to your account."
+                text: root.connected
+                  ? "Preview data is local. Your WHOOP connection is still saved; choose Use live data when you are ready."
+                  : "Explore the panel now. Connect when your WHOOP developer app is ready. No sample value is written to your account."
                 textFormat: Text.PlainText
                 color: root.dim
                 font.family: root.fontFamily
@@ -299,6 +310,7 @@ Panel {
 
                 Button {
                   id: connectButton
+                  visible: !root.connected
                   text: "Connect WHOOP"
                   iconText: "󰌷"
                   bordered: true
@@ -392,7 +404,9 @@ Panel {
 
             Text {
               Layout.fillWidth: true
-              text: root.showingDemo ? "D next preview · C connect · R refresh" : "R refresh · Esc close"
+              text: root.showingDemo
+                ? (root.connected ? "D next preview · L live · R refresh" : "D next preview · C connect · R refresh")
+                : "R refresh · Esc close"
               textFormat: Text.PlainText
               color: root.dim
               font.family: root.fontFamily
@@ -402,18 +416,18 @@ Panel {
 
             Button {
               id: liveButton
-              visible: root.showingDemo && root.settings && root.settings.forceDemo === true
+              visible: root.showingDemo && root.connected
               text: "Use live data"
               focusable: true
               foreground: root.foreground
               accent: Color.accent
               fontFamily: root.fontFamily
-              onClicked: root.setDemoSetting(false)
+              onClicked: root.useLiveData()
             }
 
             Button {
               id: disconnectButton
-              visible: !root.showingDemo
+              visible: root.connected
               text: root.confirmDisconnect ? "Confirm disconnect" : "Disconnect"
               focusable: true
               bordered: root.confirmDisconnect

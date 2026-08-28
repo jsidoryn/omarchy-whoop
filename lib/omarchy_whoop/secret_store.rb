@@ -2,6 +2,7 @@
 
 require "json"
 require "open3"
+require "timeout"
 
 module OmarchyWhoop
   class SecretStore
@@ -16,13 +17,18 @@ module OmarchyWhoop
     end
 
     def available?
-      _stdout, _stderr, status = Open3.capture3("bash", "-lc", "command -v secret-tool")
-      status.success?
+      ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? do |directory|
+        path = File.join(directory, "secret-tool")
+        File.file?(path) && File.executable?(path)
+      end
     end
 
     def read
-      result = @runner.call(["secret-tool", "lookup", "service", SERVICE, "account", ACCOUNT], stdin_data: nil)
-      return nil unless result.success?
+      result = execute(["secret-tool", "lookup", "service", SERVICE, "account", ACCOUNT], stdin_data: nil)
+      unless result.success?
+        return nil if result.stderr.to_s.strip.empty?
+        raise ConfigurationError, concise(result.stderr, "Could not read credentials from the system keyring")
+      end
       text = result.stdout.to_s.strip
       return nil if text.empty?
 
@@ -35,7 +41,7 @@ module OmarchyWhoop
     # refresh tokens, so replacing one JSON value avoids a half-updated pair.
     def write(bundle)
       payload = JSON.generate(bundle)
-      result = @runner.call(
+      result = execute(
         ["secret-tool", "store", "--label=#{LABEL}", "service", SERVICE, "account", ACCOUNT],
         stdin_data: payload
       )
@@ -45,15 +51,27 @@ module OmarchyWhoop
     end
 
     def clear
-      result = @runner.call(["secret-tool", "clear", "service", SERVICE, "account", ACCOUNT], stdin_data: nil)
-      result.success?
+      result = execute(["secret-tool", "clear", "service", SERVICE, "account", ACCOUNT], stdin_data: nil)
+      return true if result.success?
+
+      raise ConfigurationError, concise(result.stderr, "Could not remove credentials from the system keyring")
     end
 
     private
 
     def run(argv, stdin_data: nil)
-      stdout, stderr, status = Open3.capture3(*argv, stdin_data: stdin_data.to_s)
+      stdout, stderr, status = Timeout.timeout(30) do
+        Open3.capture3(*argv, stdin_data: stdin_data.to_s)
+      end
       Result.new(stdout, stderr, status.success?)
+    rescue Timeout::Error
+      raise ConfigurationError, "secret-tool timed out. Unlock your keyring and try again."
+    end
+
+    def execute(argv, stdin_data: nil)
+      @runner.call(argv, stdin_data: stdin_data)
+    rescue SystemCallError => error
+      raise ConfigurationError, "secret-tool could not run: #{error.message}"
     end
 
     def concise(value, fallback)
@@ -62,4 +80,3 @@ module OmarchyWhoop
     end
   end
 end
-

@@ -16,8 +16,9 @@ Item {
     sleep: ({}),
     week: []
   })
-  property string state: "loading"
+  property string status: "loading"
   property string message: "Loading WHOOP"
+  property bool connected: false
   property bool refreshing: false
   property bool refreshQueued: false
   property string pendingDemoScenario: ""
@@ -27,8 +28,10 @@ Item {
   property string demoScenario: "primed"
   property string _stdout: ""
   property string _stderr: ""
+  property double lastFetchStartedAt: 0
+  property bool fetchTimedOut: false
 
-  readonly property string helper: Qt.resolvedUrl("bin/whoop").toString().replace(/^file:\/\//, "")
+  readonly property string helper: decodeURIComponent(Qt.resolvedUrl("bin/whoop").toString().replace(/^file:\/\//, ""))
   readonly property bool demoMode: snapshot && snapshot.mode === "demo"
   readonly property bool hasData: snapshot && snapshot.recovery !== undefined
   readonly property int recoveryScore: hasData && snapshot.recovery.score !== null && snapshot.recovery.score !== undefined
@@ -36,7 +39,7 @@ Item {
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 600, 300, 3600)
   readonly property bool forceDemo: boolSetting("forceDemo", false)
   readonly property string barLabel: Model.barLabel(snapshot)
-  readonly property string tooltip: Model.tooltip(snapshot, refreshing)
+  readonly property string tooltip: Model.tooltip(snapshot, refreshing, status, lastError)
 
   visible: false
 
@@ -67,22 +70,27 @@ Item {
     return [helper, "snapshot", "--fallback-demo", demoScenario]
   }
 
-  function refresh() {
+  function refresh(force) {
     if (fetchProcess.running) {
-      refreshQueued = true
+      if (force === true) refreshQueued = true
       return
     }
+    if (force !== true && Date.now() - lastFetchStartedAt < 15000) return
     refreshQueued = false
     refreshing = true
+    fetchTimedOut = false
     lastError = ""
     _stdout = ""
     _stderr = ""
     fetchProcess.command = command()
+    lastFetchStartedAt = Date.now()
     fetchProcess.running = true
+    fetchWatchdog.restart()
   }
 
   function showDemo(scenario) {
     demoScenario = String(scenario || "primed")
+    refreshQueued = false
     if (fetchProcess.running) {
       pendingDemoScenario = demoScenario
       return
@@ -92,11 +100,13 @@ Item {
 
   function startDemo(scenario) {
     refreshing = true
+    fetchTimedOut = false
     lastError = ""
     _stdout = ""
     _stderr = ""
     fetchProcess.command = [helper, "demo", String(scenario || "primed")]
     fetchProcess.running = true
+    fetchWatchdog.restart()
   }
 
   function nextDemo() {
@@ -114,22 +124,23 @@ Item {
     try {
       parsed = JSON.parse(String(raw || ""))
     } catch (error) {
-      state = "error"
+      status = "error"
       message = "WHOOP returned data the plugin could not read"
       lastError = message
       return
     }
 
     var nextState = String(parsed.state || "error")
+    if (parsed.connected !== undefined) connected = parsed.connected === true
     if (nextState === "error" && hasData) {
-      state = "error"
+      status = "error"
       message = String(parsed.message || "WHOOP refresh failed")
       lastError = message
       return
     }
 
     snapshot = parsed
-    state = nextState
+    status = nextState
     message = String(parsed.message || "")
     lastError = ""
     if (parsed.demoScenario) demoScenario = String(parsed.demoScenario)
@@ -140,7 +151,21 @@ Item {
     repeat: true
     running: true
     triggeredOnStart: true
-    onTriggered: root.refresh()
+    onTriggered: root.refresh(false)
+  }
+
+  Timer {
+    id: fetchWatchdog
+    interval: 180000
+    repeat: false
+    onTriggered: {
+      root.fetchTimedOut = true
+      root.refreshing = false
+      root.status = "error"
+      root.message = "WHOOP timed out. Unlock your keyring and try again."
+      root.lastError = root.message
+      fetchProcess.running = false
+    }
   }
 
   Timer {
@@ -153,7 +178,7 @@ Item {
       root.deferredAction = ""
       root.deferredScenario = ""
       if (action === "demo") root.startDemo(scenario)
-      else if (action === "refresh") root.refresh()
+      else if (action === "refresh") root.refresh(true)
     }
   }
 
@@ -175,12 +200,15 @@ Item {
     }
 
     onExited: function(exitCode) {
+      fetchWatchdog.stop()
       root.refreshing = false
       var output = String(outputCollector.text || root._stdout || "")
-      if (output.trim() !== "") root.apply(output)
+      if (root.fetchTimedOut) root.fetchTimedOut = false
+      else if (output.trim() !== "") root.apply(output)
       else {
-        root.state = "error"
-        root.message = "The WHOOP helper produced no data"
+        var errorText = String(errorCollector.text || root._stderr || "").trim().split("\n")[0]
+        root.status = "error"
+        root.message = errorText !== "" ? errorText.substring(0, 180) : "The WHOOP helper produced no data"
         root.lastError = root.message
       }
       if (root.pendingDemoScenario !== "") {
@@ -203,9 +231,9 @@ Item {
     running: false
     command: []
     onExited: function(exitCode) {
-      if (exitCode === 0) root.refresh()
+      if (exitCode === 0) root.refresh(true)
       else {
-        root.state = "error"
+        root.status = "error"
         root.message = "Could not disconnect WHOOP"
         root.lastError = root.message
       }

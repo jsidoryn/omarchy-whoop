@@ -2,6 +2,7 @@
 
 require "json"
 require "net/http"
+require "openssl"
 require "uri"
 
 module OmarchyWhoop
@@ -29,7 +30,7 @@ module OmarchyWhoop
       raise HttpError.new(error_message(response.code.to_i, body), status: response.code.to_i, body: body)
     rescue JSON::ParserError
       raise HttpError.new("WHOOP returned an unreadable response", status: response&.code.to_i, body: response&.body.to_s)
-    rescue SocketError, SystemCallError, Timeout::Error => error
+    rescue SocketError, SystemCallError, Timeout::Error, OpenSSL::SSL::SSLError, EOFError, IOError => error
       raise HttpError.new("Could not reach WHOOP: #{error.message}", status: 0)
     end
 
@@ -47,4 +48,3 @@ module OmarchyWhoop
     end
   end
 end
-

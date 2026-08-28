@@ -17,6 +17,7 @@ module OmarchyWhoop
         "schemaVersion" => 1,
         "state" => state,
         "mode" => "live",
+        "connected" => true,
         "message" => state == "ok" ? "Live WHOOP data" : pending_message(recovery_state, calibrating),
         "fetchedAt" => fetched_at.iso8601,
         "demoScenario" => nil,
@@ -84,7 +85,7 @@ module OmarchyWhoop
         value = number(item.dig("score", "recovery_score"), integer: true)
         next if value.nil?
         {"date" => item["created_at"], "score" => value}
-      end
+      end.sort_by { |day| day["date"].to_s }
     end
 
     def pending_message(score_state, calibrating)
@@ -94,4 +95,3 @@ module OmarchyWhoop
     end
   end
 end
-

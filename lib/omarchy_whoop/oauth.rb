@@ -26,8 +26,12 @@ module OmarchyWhoop
       uri.to_s
     end
 
-    def callback_code(callback, expected_state:)
+    def callback_code(callback, expected_state:, redirect_uri:)
       uri = URI(callback.to_s.strip)
+      expected = URI(redirect_uri)
+      unless uri.scheme == expected.scheme && uri.host == expected.host && uri.path == expected.path
+        raise AuthError, "That callback URL does not match #{redirect_uri}."
+      end
       params = URI.decode_www_form(uri.query.to_s).to_h
       raise AuthError, "WHOOP returned an OAuth error: #{params['error']}" if params["error"]
       raise AuthError, "The callback state did not match. Start setup again." unless secure_equal?(params["state"], expected_state)
@@ -71,4 +75,3 @@ module OmarchyWhoop
     end
   end
 end
-

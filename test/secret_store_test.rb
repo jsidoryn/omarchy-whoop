@@ -43,5 +43,28 @@ class SecretStoreTest < Minitest::Test
     assert_nil OmarchyWhoop::SecretStore.new(runner: runner).read
     refute calls.flatten.include?("search")
   end
-end
 
+  def test_lookup_backend_errors_are_not_mistaken_for_missing_credentials
+    runner = lambda do |_argv, stdin_data: nil|
+      Result.new("", "The secret service is unavailable", false)
+    end
+
+    error = assert_raises(OmarchyWhoop::ConfigurationError) do
+      OmarchyWhoop::SecretStore.new(runner: runner).read
+    end
+
+    assert_match(/secret service is unavailable/i, error.message)
+  end
+
+  def test_clear_failure_is_reported
+    runner = lambda do |_argv, stdin_data: nil|
+      Result.new("", "The collection is locked", false)
+    end
+
+    error = assert_raises(OmarchyWhoop::ConfigurationError) do
+      OmarchyWhoop::SecretStore.new(runner: runner).clear
+    end
+
+    assert_match(/collection is locked/i, error.message)
+  end
+end

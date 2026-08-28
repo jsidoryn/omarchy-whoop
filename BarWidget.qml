@@ -69,11 +69,11 @@ BarWidget {
     labelVisible: false
     hasVisualContent: true
     fixedWidth: vertical ? -1 : barContent.implicitWidth + Style.space(14)
-    active: !!(root.whoopService && root.whoopService.state === "error")
+    active: !!(root.whoopService && root.whoopService.status === "error")
     tooltipText: root.whoopService ? root.whoopService.tooltip : "WHOOP"
     onPressed: function(buttonCode) {
       if (!root.whoopService) return
-      if (buttonCode === Qt.RightButton || buttonCode === Qt.MiddleButton) root.whoopService.refresh()
+      if (buttonCode === Qt.RightButton || buttonCode === Qt.MiddleButton) root.whoopService.refresh(false)
       else root.toggle()
     }
 
