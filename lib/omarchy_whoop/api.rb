@@ -9,15 +9,15 @@ module OmarchyWhoop
     end
 
     def snapshot(access_token)
-      cycle_collection = get("/cycle?limit=10", access_token)
+      cycle_collection = get("/cycle?limit=25", access_token)
       cycle = Array(cycle_collection["records"]).first
       raise Error, "WHOOP has not returned a physiological cycle yet." unless cycle
 
       id = cycle.fetch("id")
       recovery = get_optional("/cycle/#{id}/recovery", access_token)
       sleep = get_optional("/cycle/#{id}/sleep", access_token)
-      history = get("/recovery?limit=10", access_token)
-      sleep_history = get("/activity/sleep?limit=14", access_token)
+      history = get("/recovery?limit=25", access_token)
+      sleep_history = get("/activity/sleep?limit=25", access_token)
       {
         cycle: cycle,
         recovery: recovery || {"cycle_id" => id, "score_state" => "PENDING_SCORE"},

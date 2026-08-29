@@ -38,11 +38,11 @@ class ApiTest < Minitest::Test
     assert_equal recoveries, result.fetch(:history)
     assert_equal sleeps, result.fetch(:sleep_history)
     assert_equal [
-      "https://api.prod.whoop.com/developer/v2/cycle?limit=10",
+      "https://api.prod.whoop.com/developer/v2/cycle?limit=25",
       "https://api.prod.whoop.com/developer/v2/cycle/7/recovery",
       "https://api.prod.whoop.com/developer/v2/cycle/7/sleep",
-      "https://api.prod.whoop.com/developer/v2/recovery?limit=10",
-      "https://api.prod.whoop.com/developer/v2/activity/sleep?limit=14"
+      "https://api.prod.whoop.com/developer/v2/recovery?limit=25",
+      "https://api.prod.whoop.com/developer/v2/activity/sleep?limit=25"
     ], http.urls
   end
 end
