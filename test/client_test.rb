@@ -70,9 +70,27 @@ class ClientTest < Minitest::Test
     end
   end
 
+  class FailingRevokeApi
+    def revoke(_token)
+      raise OmarchyWhoop::HttpError.new("offline", status: 503)
+    end
+  end
+
   class FailingWriteStore < FakeStore
     def write(_value)
       raise OmarchyWhoop::ConfigurationError, "collection is locked"
+    end
+  end
+
+  class CorruptStore
+    attr_reader :cleared
+
+    def read
+      raise OmarchyWhoop::ConfigurationError, "invalid JSON"
+    end
+
+    def clear
+      @cleared = true
     end
   end
 
@@ -125,6 +143,45 @@ class ClientTest < Minitest::Test
 
       assert_equal "fresh-access", api.revoked
       assert_nil store.bundle
+    end
+  end
+
+  def test_disconnect_clears_a_corrupt_keyring_item
+    Dir.mktmpdir do |directory|
+      store = CorruptStore.new
+      client = OmarchyWhoop::Client.new(store: store, api: FakeApi.new, lock_path: File.join(directory, "refresh.lock"))
+
+      assert client.disconnect
+      assert store.cleared
+    end
+  end
+
+  def test_disconnect_clears_credentials_when_revocation_is_offline
+    Dir.mktmpdir do |directory|
+      store = FakeStore.new({"access_token" => "access", "expires_at" => 10_000})
+      client = OmarchyWhoop::Client.new(store: store, api: FailingRevokeApi.new, clock: -> { 1_000 }, lock_path: File.join(directory, "refresh.lock"))
+
+      assert client.disconnect
+      assert_nil store.bundle
+    end
+  end
+
+  def test_default_fallback_lock_directory_is_owner_only
+    Dir.mktmpdir do |directory|
+      previous_runtime_directory = ENV.delete("XDG_RUNTIME_DIR")
+      previous_tmpdir = ENV["TMPDIR"]
+      ENV["TMPDIR"] = directory
+
+      store = FakeStore.new(nil)
+      client = OmarchyWhoop::Client.new(store: store)
+      client.store_credentials("access_token" => "test")
+
+      runtime_directory = File.join(directory, "omarchy-whoop-#{Process.uid}")
+      assert_equal 0, File.stat(runtime_directory).mode & 0o077
+      assert_equal 0, File.stat(File.join(runtime_directory, "refresh.lock")).mode & 0o077
+    ensure
+      ENV["XDG_RUNTIME_DIR"] = previous_runtime_directory
+      ENV["TMPDIR"] = previous_tmpdir
     end
   end
 

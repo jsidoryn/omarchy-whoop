@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "tmpdir"
 
 module OmarchyWhoop
   class Client
@@ -12,7 +13,7 @@ module OmarchyWhoop
       @api = api
       @presenter = presenter
       @clock = clock
-      @lock_path = lock_path || File.join(ENV.fetch("XDG_RUNTIME_DIR", "/tmp"), "omarchy-whoop-refresh.lock")
+      @lock_path = lock_path || default_lock_path
     end
 
     def valid_access_token
@@ -36,13 +37,12 @@ module OmarchyWhoop
 
     def disconnect
       with_lock do
-        bundle = @store.read
-        return true unless bundle
-
         begin
-          @api.revoke(valid_access_token_unlocked(bundle))
+          bundle = @store.read
+          @api.revoke(valid_access_token_unlocked(bundle)) if bundle
         rescue Error, KeyError
-          # Local deletion must remain possible when offline or already revoked.
+          # Local deletion must remain possible when offline, already revoked,
+          # or the keyring item is corrupt.
         ensure
           @store.clear
         end
@@ -52,9 +52,26 @@ module OmarchyWhoop
 
     private
 
+    def default_lock_path
+      runtime_directory = ENV.fetch("XDG_RUNTIME_DIR", "").strip
+      if runtime_directory.empty?
+        runtime_directory = File.join(Dir.tmpdir, "omarchy-whoop-#{Process.uid}")
+        FileUtils.mkdir_p(runtime_directory, mode: 0o700)
+        stat = File.lstat(runtime_directory)
+        unless stat.directory? && stat.uid == Process.uid && (stat.mode & 0o077).zero?
+          raise ConfigurationError, "WHOOP fallback runtime directory is not private: #{runtime_directory}"
+        end
+      end
+
+      File.join(runtime_directory, "refresh.lock")
+    end
+
     def with_lock
       FileUtils.mkdir_p(File.dirname(@lock_path))
-      File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |file|
+      flags = File::RDWR | File::CREAT
+      flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+      File.open(@lock_path, flags, 0o600) do |file|
+        file.chmod(0o600)
         file.flock(File::LOCK_EX)
         yield
       end
