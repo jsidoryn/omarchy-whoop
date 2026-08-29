@@ -4,6 +4,9 @@ A demo-first Omarchy bar plugin for today's WHOOP recovery, strain, sleep, and c
 
 The collector is written in Ruby and uses only Ruby's standard library. Credentials are stored by `secret-tool` in the desktop keyring; they are never written to `shell.json`, this repository, or a cache file.
 
+> [!NOTE]
+> This project is an early preview. Its demo experience and OAuth integration are automated-test covered, but the first connection to a real WHOOP account is still being validated.
+
 ## What it feels like
 
 - The bar shows a compact recovery ring, score, and a `D` while previewing demo data.
@@ -101,6 +104,8 @@ omarchy-shell shell toggle io.github.jsidoryn.whoop '{}'
 
 ## Privacy and API behavior
 
+Read the full [Privacy Policy](https://jsidoryn.github.io/omarchy-whoop/privacy/).
+
 - Requests go directly from your machine to `api.prod.whoop.com` over HTTPS.
 - Only cycle, recovery, and sleep read scopes are requested, plus `offline` for refresh tokens.
 - No profile, email, body measurement, workout, or write scope is requested.
@@ -152,6 +157,8 @@ The helper's JSON is a private plugin contract. The UI never reads credentials a
 ## Current limitation
 
 The OAuth flow and WHOOP payload handling are covered by automated tests and checked against the current WHOOP v2 documentation. A real account connection still needs to be exercised with your developer credentials, because the repository deliberately contains none.
+
+For support, [open an issue](https://github.com/jsidoryn/omarchy-whoop/issues). Please use [private vulnerability reporting](https://github.com/jsidoryn/omarchy-whoop/security/advisories/new) for security-sensitive reports and never include WHOOP credentials or health data in a public issue.
 
 ## License
 

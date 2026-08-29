@@ -3,8 +3,9 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
+RUBY_BIN=${RUBY_BIN:-/usr/bin/ruby}
 
 for test_file in test/*_test.rb; do
-  /usr/bin/ruby -Itest "$test_file"
+  "$RUBY_BIN" -Itest "$test_file"
 done
 node --test tests/*.test.js
