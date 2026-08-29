@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "omarchy_whoop/errors"
+require_relative "omarchy_whoop/callback_handler"
 require_relative "omarchy_whoop/secret_store"
 require_relative "omarchy_whoop/http"
 require_relative "omarchy_whoop/oauth"
@@ -11,6 +12,5 @@ require_relative "omarchy_whoop/client"
 require_relative "omarchy_whoop/cli"
 
 module OmarchyWhoop
-  VERSION = "0.1.0"
+  VERSION = "0.2.0"
 end
-

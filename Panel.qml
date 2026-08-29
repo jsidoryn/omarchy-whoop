@@ -39,7 +39,8 @@ Panel {
 
   function launchSetup() {
     if (!bar || !service || service.helper === "") return
-    var command = "omarchy-launch-floating-terminal-with-presentation " + Util.shellQuote(service.helper) + " setup"
+    var setupHelper = decodeURIComponent(Qt.resolvedUrl("bin/whoop-setup").toString().replace(/^file:\/\//, ""))
+    var command = "omarchy-launch-floating-terminal-with-presentation " + Util.shellQuote(setupHelper)
     bar.run(command)
     close()
   }

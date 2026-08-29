@@ -31,6 +31,7 @@ WHOOP information is used only to retrieve and display your statistics in the Om
 - Requests travel directly from your computer to WHOOP over HTTPS. The maintainer does not operate an intermediary server.
 - WHOOP statistics are held in the running plugin's memory and replaced when data is refreshed. They are not written to a plugin database or permanent cache and are discarded when the Omarchy shell exits.
 - OAuth credentials are stored as one item in your desktop keyring through `secret-tool`. They are not written to the plugin directory, Omarchy configuration, logs, or a health-data cache.
+- During setup, the browser returns a short-lived authorization code to a per-user desktop URL handler. The desktop launcher briefly supplies the callback URL to the helper as a process argument; the helper then relays it to the waiting setup process through an owner-only runtime socket. The callback is not written to disk. Like other process arguments, it can be visible to local process-inspection tools while that short-lived helper is running. The handler's desktop entry contains only the installed helper path.
 - A local owner-only runtime lock file coordinates token refreshes. It contains no WHOOP credentials or health information.
 - Demo information is generated locally and is never sent to WHOOP.
 
@@ -48,6 +49,12 @@ Removing the plugin by itself does not remove credentials. To revoke access and 
 
 ```bash
 ~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop disconnect
+```
+
+Setup also installs a per-user callback-handler desktop entry. Remove it before uninstalling the plugin:
+
+```bash
+~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop callback-handler remove
 ```
 
 You can also revoke the application from your WHOOP account. In-memory WHOOP statistics are discarded when the Omarchy shell exits.

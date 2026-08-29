@@ -85,4 +85,17 @@ class ContractTest < Minitest::Test
       refute source.match?(/client[_ -]?secret\s*[:=]\s*[\"'][^\"']+/i), "#{File.basename(file)} contains a credential"
     end
   end
+
+  def test_panel_uses_the_setup_wrapper_that_preserves_failures
+    panel = File.read(File.join(ROOT, "Panel.qml"))
+
+    assert panel.include?(%(Qt.resolvedUrl("bin/whoop-setup")))
+    refute panel.include?(%(service.helper) + " setup")
+  end
+
+  def test_manifest_and_ruby_versions_match
+    manifest = JSON.parse(File.read(File.join(ROOT, "manifest.json")))
+
+    assert_equal manifest.fetch("version"), OmarchyWhoop::VERSION
+  end
 end

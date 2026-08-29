@@ -7,7 +7,7 @@ require "securerandom"
 
 module OmarchyWhoop
   class Cli
-    REDIRECT_URI = "whoop://omarchy/callback"
+    REDIRECT_URI = CallbackHandler::REDIRECT_URI
 
     def initialize(
       argv,
@@ -17,7 +17,11 @@ module OmarchyWhoop
       store: SecretStore.new,
       oauth: OAuth.new,
       api: Api.new,
+      callback_handler: CallbackHandler.new,
       opener: ->(url) { system("xdg-open", url, out: File::NULL, err: File::NULL) },
+      callback_error_notifier: ->(message) {
+        system("omarchy-notification-send", "WHOOP setup", message, "-u", "critical", out: File::NULL, err: File::NULL)
+      },
       notifier: ->(method) { system("omarchy-shell", "-q", "io.github.jsidoryn.whoop", method, out: File::NULL, err: File::NULL) }
     )
       @argv = argv.dup
@@ -27,7 +31,9 @@ module OmarchyWhoop
       @store = store
       @oauth = oauth
       @api = api
+      @callback_handler = callback_handler
       @opener = opener
+      @callback_error_notifier = callback_error_notifier
       @notifier = notifier
       @snapshot_connected = false
     end
@@ -38,6 +44,8 @@ module OmarchyWhoop
       when "snapshot" then snapshot
       when "demo" then emit(Demo.snapshot(@argv.shift || "primed", connected: connected?))
       when "setup" then setup
+      when "oauth-callback" then oauth_callback
+      when "callback-handler" then callback_handler
       when "status" then status
       when "disconnect" then disconnect
       when "version" then @output.puts OmarchyWhoop::VERSION
@@ -70,6 +78,8 @@ module OmarchyWhoop
 
     def setup
       ensure_keyring!
+      @output.puts "Registering the per-user WHOOP callback handler…"
+      @callback_handler.register!
       heading("Connect WHOOP to Omarchy")
       @output.puts <<~TEXT
         Before continuing, create an app in the WHOOP Developer Dashboard:
@@ -95,16 +105,16 @@ module OmarchyWhoop
 
       state = SecureRandom.alphanumeric(8)
       url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:)
-      @output.puts "\nOpening WHOOP authorization in your browser…"
-      opened = @opener.call(url)
-      @output.puts "\nIf the browser did not open, visit:\n\n  #{url}" if opened == false
-      @output.puts <<~TEXT
+      callback = @callback_handler.capture do
+        @output.puts "\nOpening WHOOP authorization in your browser…"
+        opened = @opener.call(url)
+        @output.puts "\nIf the browser did not open, visit:\n\n  #{url}" if opened == false
+        @output.puts <<~TEXT
 
-        Approve access in WHOOP. Your browser may say it cannot open the final
-        whoop:// address; that is expected. Copy the complete final address from
-        the browser's address bar and paste it below.
-      TEXT
-      callback = prompt("WHOOP callback URL: ").strip
+          Approve access in WHOOP, then allow the browser to open WHOOP for
+          Omarchy. You will return to this terminal automatically.
+        TEXT
+      end
       code = @oauth.callback_code(callback, expected_state: state, redirect_uri: REDIRECT_URI)
       tokens = @oauth.exchange(client_id:, client_secret:, redirect_uri: REDIRECT_URI, code:)
       bundle = {
@@ -125,6 +135,32 @@ module OmarchyWhoop
         @output.puts "\nYou can close this terminal. The bar will update automatically."
       ensure
         notify_shell("setupFinished")
+      end
+    end
+
+    def oauth_callback
+      callback = @argv.shift.to_s
+      raise ConfigurationError, "The browser did not provide a WHOOP callback URL." if callback.empty?
+
+      @callback_handler.deliver(callback)
+    rescue Error => error
+      @callback_error_notifier.call(error.message)
+      raise
+    end
+
+    def callback_handler
+      action = @argv.shift || "status"
+      case action
+      when "install"
+        @callback_handler.register!
+        @output.puts "WHOOP callback handler installed for the current user."
+      when "remove"
+        @callback_handler.unregister!
+        @output.puts "WHOOP callback handler removed for the current user."
+      when "status"
+        emit("registered" => @callback_handler.registered?, "redirectUri" => REDIRECT_URI)
+      else
+        raise ConfigurationError, "Unknown callback-handler action: #{action}"
       end
     end
 
