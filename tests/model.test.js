@@ -34,3 +34,11 @@ test("tooltip reports a refresh error instead of healthy stale data", () => {
   assert.equal(Model.tooltip(stale, false, "error", "Could not reach WHOOP"), "Could not reach WHOOP")
   assert.equal(Model.tooltip(stale, true, "error", "Could not reach WHOOP"), "Refreshing WHOOP")
 })
+
+test("tooltip reports the recovery score without an interpreted label", () => {
+  const live = { state: "ok", mode: "live", recovery: { score: 82 } }
+  const demo = { state: "demo", mode: "demo", recovery: { score: 67 } }
+
+  assert.equal(Model.tooltip(live, false, "ok", ""), "Recovery 82")
+  assert.equal(Model.tooltip(demo, false, "demo", ""), "WHOOP demo · Recovery 67")
+})

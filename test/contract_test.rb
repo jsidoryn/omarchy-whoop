@@ -31,6 +31,15 @@ class ContractTest < Minitest::Test
     refute panel.include?("IpcHandler {")
   end
 
+  def test_panel_presents_the_three_whoop_scores_without_interpretation
+    panel = File.read(File.join(ROOT, "Panel.qml"))
+
+    %w[Recovery Sleep Strain].each do |score|
+      assert panel.include?(%(label: "#{score}")), "Panel must show the #{score} score directly"
+    end
+    refute panel.include?("root.band.label")
+  end
+
   def test_qml_contains_no_literal_hex_colors_or_plaintext_credentials
     Dir.glob(File.join(ROOT, "*.qml")).each do |file|
       source = File.read(file)

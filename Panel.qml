@@ -28,12 +28,9 @@ Panel {
   readonly property var cycle: snapshotData.cycle || ({})
   readonly property var sleep: snapshotData.sleep || ({})
   readonly property real recoveryScore: recovery.score === null || recovery.score === undefined ? -1 : Number(recovery.score)
-  readonly property var band: Model.recoveryBand(recoveryScore >= 0 ? recoveryScore : null)
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.45)
-  readonly property color scoreColor: band.colorRole === "positive" ? Color.accent
-    : (band.colorRole === "urgent" ? urgent : (band.colorRole === "warning" ? foreground : Color.muted))
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool showingDemo: snapshotData.mode === "demo"
   readonly property bool connected: service ? service.connected === true : false
@@ -149,17 +146,7 @@ Panel {
 
           RowLayout {
             Layout.fillWidth: true
-            spacing: Style.space(16)
-
-            RecoveryRing {
-              Layout.preferredWidth: Style.space(92)
-              Layout.preferredHeight: Layout.preferredWidth
-              score: root.recoveryScore
-              foreground: root.foreground
-              accent: Color.accent
-              urgent: root.urgent
-              valueFontSize: Style.font.displayLarge
-            }
+            spacing: Style.space(12)
 
             ColumnLayout {
               Layout.fillWidth: true
@@ -203,31 +190,14 @@ Panel {
 
               Text {
                 Layout.fillWidth: true
-                text: root.band.label
-                textFormat: Text.PlainText
-                color: root.scoreColor
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.title
-                font.bold: true
-              }
-
-              Text {
-                Layout.fillWidth: true
-                text: root.hasError && service ? service.message : String(root.snapshotData.message || "")
+                text: root.hasError && service
+                  ? service.message
+                  : (root.refreshing ? "Refreshing…" : Model.freshness(root.snapshotData.fetchedAt, root.nowMs))
                 textFormat: Text.PlainText
                 color: root.hasError ? root.urgent : root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall
                 wrapMode: Text.WordWrap
-              }
-
-              Text {
-                Layout.fillWidth: true
-                text: root.refreshing ? "Refreshing…" : Model.freshness(root.snapshotData.fetchedAt, root.nowMs)
-                textFormat: Text.PlainText
-                color: root.dim
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
               }
             }
 
@@ -238,6 +208,37 @@ Panel {
               fontFamily: root.fontFamily
               enabled: !root.refreshing
               onClicked: if (service) service.refresh(false)
+            }
+          }
+
+          GridLayout {
+            Layout.fillWidth: true
+            columns: 3
+            columnSpacing: Style.space(9)
+            rowSpacing: Style.space(9)
+
+            MetricTile {
+              Layout.fillWidth: true
+              label: "Recovery"
+              value: Model.metric(root.recovery.score, "%")
+              valueFontSize: Style.font.display
+              foreground: root.foreground
+            }
+
+            MetricTile {
+              Layout.fillWidth: true
+              label: "Sleep"
+              value: Model.metric(root.sleep.performance, "%")
+              valueFontSize: Style.font.display
+              foreground: root.foreground
+            }
+
+            MetricTile {
+              Layout.fillWidth: true
+              label: "Strain"
+              value: Model.metric(root.cycle.strain, "", 1)
+              valueFontSize: Style.font.display
+              foreground: root.foreground
             }
           }
 
@@ -312,42 +313,37 @@ Panel {
             }
           }
 
-          GridLayout {
+          ColumnLayout {
             Layout.fillWidth: true
-            columns: 2
-            columnSpacing: Style.space(9)
-            rowSpacing: Style.space(9)
+            spacing: Style.space(7)
 
-            MetricTile {
-              Layout.fillWidth: true
-              label: "Day strain"
-              value: Model.metric(root.cycle.strain, "", 1)
-              detail: "Current physiological cycle"
+            PanelSectionHeader {
+              text: "RECOVERY METRICS"
+              textFormat: Text.PlainText
               foreground: root.foreground
+              fontFamily: root.fontFamily
             }
 
-            MetricTile {
+            GridLayout {
               Layout.fillWidth: true
-              label: "Sleep"
-              value: Model.metric(root.sleep.performance, "%")
-              detail: Model.duration(root.sleep.actualHours) + " of " + Model.duration(root.sleep.neededHours)
-              foreground: root.foreground
-            }
+              columns: 2
+              columnSpacing: Style.space(9)
+              rowSpacing: Style.space(9)
 
-            MetricTile {
-              Layout.fillWidth: true
-              label: "HRV"
-              value: Model.metric(root.recovery.hrvMs, " ms", 1)
-              detail: "RMSSD overnight"
-              foreground: root.foreground
-            }
+              MetricTile {
+                Layout.fillWidth: true
+                label: "HRV"
+                value: Model.metric(root.recovery.hrvMs, " ms", 1)
+                detail: "RMSSD"
+                foreground: root.foreground
+              }
 
-            MetricTile {
-              Layout.fillWidth: true
-              label: "Resting heart rate"
-              value: Model.metric(root.recovery.restingHeartRate, " bpm")
-              detail: "Overnight baseline"
-              foreground: root.foreground
+              MetricTile {
+                Layout.fillWidth: true
+                label: "Resting heart rate"
+                value: Model.metric(root.recovery.restingHeartRate, " bpm")
+                foreground: root.foreground
+              }
             }
           }
 

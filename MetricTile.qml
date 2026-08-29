@@ -10,6 +10,7 @@ BorderSurface {
   property string detail: ""
   property color foreground: Color.foreground
   property color accent: Color.accent
+  property real valueFontSize: Style.font.heading
 
   implicitHeight: content.implicitHeight + Style.space(20)
   radius: Style.cornerRadius
@@ -40,7 +41,7 @@ BorderSurface {
       textFormat: Text.PlainText
       color: root.foreground
       font.family: Style.font.family
-      font.pixelSize: Style.font.heading
+      font.pixelSize: root.valueFontSize
       font.bold: true
     }
 
@@ -56,4 +57,3 @@ BorderSurface {
     }
   }
 }
-
