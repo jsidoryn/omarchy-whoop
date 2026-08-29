@@ -50,8 +50,12 @@ function tooltip(snapshot, refreshing, serviceStatus, lastError) {
   if (refreshing) return "Refreshing WHOOP"
   if (serviceStatus === "error") return String(lastError || "WHOOP refresh failed")
   var data = snapshot || {}
-  if (data.mode === "demo") return "WHOOP demo · Recovery " + barLabel(data)
-  if (data.state === "ok") return "Recovery " + barLabel(data)
+  var label = barLabel(data)
+  var scored = /^[0-9]+$/.test(label)
+  if (data.mode === "demo") {
+    return scored ? "WHOOP demo · Recovery " + label : String(data.message || "WHOOP recovery pending")
+  }
+  if (data.state === "ok") return "Recovery " + label
   return String(data.message || "WHOOP is unavailable")
 }
 

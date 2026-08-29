@@ -40,3 +40,21 @@ test("tooltip reports the recovery score without an interpreted label", () => {
   assert.equal(Model.tooltip(live, false, "ok", ""), "Recovery 82")
   assert.equal(Model.tooltip(demo, false, "demo", ""), "WHOOP demo · Recovery 67")
 })
+
+test("tooltip explains unscored snapshots instead of exposing bar sentinels", () => {
+  const pending = {
+    state: "pending",
+    mode: "demo",
+    message: "WHOOP is calculating recovery",
+    recovery: { score: null }
+  }
+  const loading = {
+    state: "loading",
+    mode: "demo",
+    message: "Loading WHOOP",
+    recovery: { score: null }
+  }
+
+  assert.equal(Model.tooltip(pending, false, "pending", ""), "WHOOP is calculating recovery")
+  assert.equal(Model.tooltip(loading, false, "loading", ""), "Loading WHOOP")
+})

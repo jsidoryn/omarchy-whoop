@@ -34,10 +34,24 @@ class ContractTest < Minitest::Test
   def test_panel_presents_the_three_whoop_scores_without_interpretation
     panel = File.read(File.join(ROOT, "Panel.qml"))
 
-    %w[Recovery Sleep Strain].each do |score|
+    bindings = {
+      "Recovery" => %(Model.metric(root.recovery.score, "%")),
+      "Sleep" => %(Model.metric(root.sleep.performance, "%")),
+      "Strain" => %(Model.metric(root.cycle.strain, "", 1))
+    }
+
+    bindings.each do |score, binding|
       assert panel.include?(%(label: "#{score}")), "Panel must show the #{score} score directly"
+      assert panel.include?(%(value: #{binding})), "#{score} must use its direct WHOOP field"
     end
-    refute panel.include?("root.band.label")
+    refute panel.match?(/recoveryBand|\.band\./)
+  end
+
+  def test_panel_explains_unscored_live_recovery_without_interpreting_it
+    panel = File.read(File.join(ROOT, "Panel.qml"))
+
+    assert panel.include?(%(root.snapshotData.state === "pending"))
+    assert panel.include?(%(String(root.snapshotData.message || "")))
   end
 
   def test_qml_contains_no_literal_hex_colors_or_plaintext_credentials

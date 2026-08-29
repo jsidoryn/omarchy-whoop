@@ -189,9 +189,18 @@ Panel {
 
               Text {
                 Layout.fillWidth: true
-                text: root.hasError && service
-                  ? service.message
-                  : (root.refreshing ? "Refreshing…" : Model.freshness(root.snapshotData.fetchedAt, root.nowMs))
+                text: root.refreshing ? "Refreshing…" : Model.freshness(root.snapshotData.fetchedAt, root.nowMs)
+                textFormat: Text.PlainText
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                wrapMode: Text.WordWrap
+              }
+
+              Text {
+                visible: root.hasError || root.snapshotData.state === "pending"
+                Layout.fillWidth: true
+                text: root.hasError && service ? service.message : String(root.snapshotData.message || "")
                 textFormat: Text.PlainText
                 color: root.hasError ? root.urgent : root.dim
                 font.family: root.fontFamily
