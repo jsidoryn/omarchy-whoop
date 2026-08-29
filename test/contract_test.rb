@@ -64,9 +64,10 @@ class ContractTest < Minitest::Test
     assert panel.include?(%(Model.trendValues(root.snapshotData, root.trendMetric)))
     assert panel.include?(%(Model.trendEmptyMessage(root.snapshotData, root.trendMetric)))
     assert panel.include?(%(title: Model.trendLabel(root.trendMetric)))
-    assert panel.include?(%(text: Model.trendLabel(Model.nextTrend(root.trendMetric))))
+    assert panel.include?(%(text: "Next"))
     assert panel.include?(%(onClicked: root.cycleTrend()))
     assert panel.include?(%(text === "t" || text === "T"))
+    refute panel.include?(%(blocked: connectButton.activeFocus))
 
     trend_button = panel.match(/Button \{\s+id: trendButton(?<body>.*?)\n\s+\}/m)
     assert trend_button

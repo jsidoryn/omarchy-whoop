@@ -124,7 +124,6 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      blocked: connectButton.activeFocus || demoButton.activeFocus || trendButton.activeFocus || liveButton.activeFocus || disconnectButton.activeFocus
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onActivateRequested: if (service) service.refresh(false)
@@ -379,7 +378,7 @@ Panel {
 
               Button {
                 id: trendButton
-                text: Model.trendLabel(Model.nextTrend(root.trendMetric))
+                text: "Next"
                 bordered: true
                 focusable: true
                 foreground: root.foreground
