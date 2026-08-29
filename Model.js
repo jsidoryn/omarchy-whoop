@@ -27,13 +27,6 @@ function nextDemoScenario(current) {
   return demoScenarios[(index + 1 + demoScenarios.length) % demoScenarios.length]
 }
 
-function duration(hours) {
-  var value = number(hours, -1)
-  if (value < 0) return "—"
-  var totalMinutes = Math.round(value * 60)
-  return Math.floor(totalMinutes / 60) + "h " + String(totalMinutes % 60).padStart(2, "0") + "m"
-}
-
 function metric(value, suffix, digits) {
   var parsed = number(value, NaN)
   if (!isFinite(parsed)) return "—"
@@ -72,7 +65,6 @@ if (typeof module !== "undefined") {
     recoveryBand: recoveryBand,
     barLabel: barLabel,
     nextDemoScenario: nextDemoScenario,
-    duration: duration,
     metric: metric,
     freshness: freshness,
     tooltip: tooltip,

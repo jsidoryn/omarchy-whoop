@@ -9,7 +9,6 @@ BorderSurface {
   property string value: "—"
   property string detail: ""
   property color foreground: Color.foreground
-  property color accent: Color.accent
   property real valueFontSize: Style.font.heading
 
   implicitHeight: content.implicitHeight + Style.space(20)

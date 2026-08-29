@@ -23,9 +23,7 @@ test("demo scenarios cycle deterministically", () => {
   assert.equal(Model.nextDemoScenario("pending"), "primed")
 })
 
-test("duration and freshness formatting stay compact", () => {
-  assert.equal(Model.duration(7.5), "7h 30m")
-  assert.equal(Model.duration(null), "—")
+test("freshness formatting stays compact", () => {
   assert.equal(Model.freshness(Date.now() - 90_000, Date.now()), "1m ago")
 })
 

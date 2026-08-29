@@ -27,7 +27,6 @@ Panel {
   readonly property var recovery: snapshotData.recovery || ({})
   readonly property var cycle: snapshotData.cycle || ({})
   readonly property var sleep: snapshotData.sleep || ({})
-  readonly property real recoveryScore: recovery.score === null || recovery.score === undefined ? -1 : Number(recovery.score)
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.45)
