@@ -4,7 +4,7 @@ require "time"
 
 module OmarchyWhoop
   class Presenter
-    def snapshot(cycle:, recovery:, sleep:, history:, fetched_at: Time.now.utc)
+    def snapshot(cycle:, recovery:, sleep:, history:, cycle_history: {"records" => []}, sleep_history: {"records" => []}, fetched_at: Time.now.utc)
       recovery_state = recovery["score_state"].to_s
       score = recovery_state == "SCORED" ? recovery["score"] || {} : {}
       sleep_score = sleep["score_state"].to_s == "SCORED" ? sleep["score"] || {} : {}
@@ -50,7 +50,11 @@ module OmarchyWhoop
           "slowWaveHours" => hours(stage["total_slow_wave_sleep_time_milli"]),
           "remHours" => hours(stage["total_rem_sleep_time_milli"])
         },
-        "week" => week(history)
+        "trends" => {
+          "recovery" => scored_trend(history, date_key: "created_at", precision: 0) { |item| item.dig("score", "recovery_score") },
+          "sleep" => scored_trend(sleep_history, date_key: "start", precision: 0, skip_naps: true) { |item| item.dig("score", "sleep_performance_percentage") },
+          "strain" => scored_trend(cycle_history, date_key: "start", precision: 1) { |item| item.dig("score", "strain") }
+        }
       }
     end
 
@@ -79,13 +83,14 @@ module OmarchyWhoop
       %w[baseline_milli need_from_sleep_debt_milli need_from_recent_strain_milli need_from_recent_nap_milli].sum { |key| number(needed[key]) || 0 }
     end
 
-    def week(history)
-      Array(history["records"]).first(7).filter_map do |item|
+    def scored_trend(collection, date_key:, precision:, skip_naps: false)
+      Array(collection["records"]).filter_map do |item|
         next unless item["score_state"] == "SCORED"
-        value = number(item.dig("score", "recovery_score"), integer: true)
+        next if skip_naps && item["nap"] == true
+        value = number(yield(item), integer: precision.zero?, precision: precision.zero? ? nil : precision)
         next if value.nil?
-        {"date" => item["created_at"], "score" => value}
-      end.sort_by { |day| day["date"].to_s }
+        {"date" => item[date_key], "value" => value}
+      end.first(7).sort_by { |day| day["date"].to_s }
     end
 
     def pending_message(score_state, calibrating)

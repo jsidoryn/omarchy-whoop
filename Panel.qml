@@ -17,6 +17,7 @@ Panel {
   property var whoopService: null
   property bool confirmDisconnect: false
   property double nowMs: Date.now()
+  property string trendMetric: "recovery"
 
   readonly property var fallbackSnapshot: ({
     state: "loading", mode: "demo", message: "Loading WHOOP",
@@ -70,6 +71,10 @@ Panel {
     else service.refresh(true)
   }
 
+  function cycleTrend() {
+    root.trendMetric = Model.nextTrend(root.trendMetric)
+  }
+
   onOpenedChanged: if (opened) {
     nowMs = Date.now()
     confirmDisconnect = false
@@ -119,13 +124,14 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      blocked: connectButton.activeFocus || demoButton.activeFocus || liveButton.activeFocus || disconnectButton.activeFocus
+      blocked: connectButton.activeFocus || demoButton.activeFocus || trendButton.activeFocus || liveButton.activeFocus || disconnectButton.activeFocus
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onActivateRequested: if (service) service.refresh(false)
       onTextKey: function(text) {
         if ((text === "r" || text === "R") && service) service.refresh(false)
         else if ((text === "d" || text === "D") && service) service.nextDemo()
+        else if (text === "t" || text === "T") root.cycleTrend()
         else if ((text === "c" || text === "C") && root.showingDemo && !root.connected) root.launchSetup()
         else if ((text === "l" || text === "L") && root.showingDemo && root.connected) root.useLiveData()
       }
@@ -342,7 +348,6 @@ Panel {
                 Layout.fillWidth: true
                 label: "HRV"
                 value: Model.metric(root.recovery.hrvMs, " ms", 1)
-                detail: "RMSSD"
                 foreground: root.foreground
               }
 
@@ -359,16 +364,38 @@ Panel {
             Layout.fillWidth: true
             spacing: Style.space(7)
 
-            PanelSectionHeader {
-              text: "SEVEN-DAY RECOVERY"
-              textFormat: Text.PlainText
-              foreground: root.foreground
-              fontFamily: root.fontFamily
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.space(8)
+
+              PanelSectionHeader {
+                text: "SEVEN-DAY TREND"
+                textFormat: Text.PlainText
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+              }
+
+              Item { Layout.fillWidth: true }
+
+              Button {
+                id: trendButton
+                text: Model.trendLabel(root.trendMetric)
+                iconText: "󰒭"
+                bordered: true
+                focusable: true
+                foreground: root.foreground
+                accent: Color.accent
+                fontFamily: root.fontFamily
+                onClicked: root.cycleTrend()
+              }
             }
 
             WeekStrip {
               Layout.fillWidth: true
-              values: Model.safeWeek(root.snapshotData)
+              values: Model.trendValues(root.snapshotData, root.trendMetric)
+              maximum: Model.trendMaximum(root.trendMetric)
+              digits: Model.trendDigits(root.trendMetric)
+              colorMode: root.trendMetric
               foreground: root.foreground
               accent: Color.accent
               urgent: root.urgent
@@ -384,8 +411,8 @@ Panel {
             Text {
               Layout.fillWidth: true
               text: root.showingDemo
-                ? (root.connected ? "D next preview · L live · R refresh" : "D next preview · C connect · R refresh")
-                : "R refresh · Esc close"
+                ? (root.connected ? "D preview · T trend · L live · R refresh" : "D preview · T trend · C connect · R refresh")
+                : "T trend · R refresh · Esc close"
               textFormat: Text.PlainText
               color: root.dim
               font.family: root.fontFamily

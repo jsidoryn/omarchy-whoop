@@ -58,3 +58,22 @@ test("tooltip explains unscored snapshots instead of exposing bar sentinels", ()
   assert.equal(Model.tooltip(pending, false, "pending", ""), "WHOOP is calculating recovery")
   assert.equal(Model.tooltip(loading, false, "loading", ""), "Loading WHOOP")
 })
+
+test("seven-day trends cycle from recovery through sleep and strain", () => {
+  const snapshot = {
+    trends: {
+      recovery: [{ date: "2026-08-27T00:00:00Z", value: 71 }],
+      sleep: [{ date: "2026-08-27T00:00:00Z", value: 86 }],
+      strain: [{ date: "2026-08-27T00:00:00Z", value: 12.4 }]
+    }
+  }
+
+  assert.equal(Model.nextTrend("recovery"), "sleep")
+  assert.equal(Model.nextTrend("sleep"), "strain")
+  assert.equal(Model.nextTrend("strain"), "recovery")
+  assert.deepEqual(Model.trendValues(snapshot, "sleep"), snapshot.trends.sleep)
+  assert.equal(Model.trendMaximum("strain"), 21)
+  assert.equal(Model.trendMaximum("recovery"), 100)
+  assert.equal(Model.trendDigits("strain"), 1)
+  assert.equal(Model.trendDigits("sleep"), 0)
+})

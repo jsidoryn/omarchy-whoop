@@ -27,6 +27,39 @@ function nextDemoScenario(current) {
   return demoScenarios[(index + 1 + demoScenarios.length) % demoScenarios.length]
 }
 
+var trendOrder = ["recovery", "sleep", "strain"]
+
+function nextTrend(current) {
+  var index = trendOrder.indexOf(String(current || ""))
+  return trendOrder[(index + 1 + trendOrder.length) % trendOrder.length]
+}
+
+function trendLabel(metric) {
+  if (metric === "sleep") return "Sleep"
+  if (metric === "strain") return "Strain"
+  return "Recovery"
+}
+
+function trendValues(snapshot, metric) {
+  var data = snapshot || {}
+  var trends = data.trends || {}
+  var values = Array.isArray(trends[metric]) ? trends[metric] : []
+  if (values.length === 0 && metric === "recovery") {
+    values = safeWeek(data).map(function(day) {
+      return { date: day.date, value: day.value === undefined ? day.score : day.value }
+    })
+  }
+  return values.slice(-7)
+}
+
+function trendMaximum(metric) {
+  return metric === "strain" ? 21 : 100
+}
+
+function trendDigits(metric) {
+  return metric === "strain" ? 1 : 0
+}
+
 function metric(value, suffix, digits) {
   var parsed = number(value, NaN)
   if (!isFinite(parsed)) return "—"
@@ -69,6 +102,11 @@ if (typeof module !== "undefined") {
     recoveryBand: recoveryBand,
     barLabel: barLabel,
     nextDemoScenario: nextDemoScenario,
+    nextTrend: nextTrend,
+    trendLabel: trendLabel,
+    trendValues: trendValues,
+    trendMaximum: trendMaximum,
+    trendDigits: trendDigits,
     metric: metric,
     freshness: freshness,
     tooltip: tooltip,
