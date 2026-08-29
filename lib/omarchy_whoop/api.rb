@@ -16,8 +16,8 @@ module OmarchyWhoop
       id = cycle.fetch("id")
       recovery = get_optional("/cycle/#{id}/recovery", access_token)
       sleep = get_optional("/cycle/#{id}/sleep", access_token)
-      history = get("/recovery?limit=25", access_token)
-      sleep_history = get("/activity/sleep?limit=25", access_token)
+      history = get_supplementary("/recovery?limit=25", access_token)
+      sleep_history = get_supplementary("/activity/sleep?limit=25", access_token)
       {
         cycle: cycle,
         recovery: recovery || {"cycle_id" => id, "score_state" => "PENDING_SCORE"},
@@ -44,6 +44,13 @@ module OmarchyWhoop
     rescue HttpError => error
       raise unless error.status == 404
       nil
+    end
+
+    def get_supplementary(path, token)
+      get(path, token)
+    rescue HttpError => error
+      raise unless error.status.zero? || error.status == 404 || error.status >= 500
+      {"records" => [], "unavailable" => true}
     end
 
     def authorization(token) = {"Authorization" => "Bearer #{token}"}

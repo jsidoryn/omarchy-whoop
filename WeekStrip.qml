@@ -14,6 +14,7 @@ BorderSurface {
   property real maximum: 100
   property int digits: 0
   property string colorMode: "recovery"
+  property string emptyText: "No scored data in the last 7 days"
 
   readonly property var days: values || []
 
@@ -91,7 +92,7 @@ BorderSurface {
       visible: root.days.length === 0
       Layout.fillWidth: true
       Layout.alignment: Qt.AlignVCenter
-      text: "No scored data yet"
+      text: root.emptyText
       textFormat: Text.PlainText
       horizontalAlignment: Text.AlignHCenter
       color: Qt.darker(root.foreground, 1.45)

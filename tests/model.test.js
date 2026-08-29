@@ -77,3 +77,18 @@ test("seven-day trends cycle from recovery through sleep and strain", () => {
   assert.equal(Model.trendDigits("strain"), 1)
   assert.equal(Model.trendDigits("sleep"), 0)
 })
+
+test("recovery trend accepts a snapshot from before the trends contract", () => {
+  const legacy = { week: [{ date: "2026-08-27T00:00:00Z", score: 71 }] }
+
+  assert.deepEqual(Model.trendValues(legacy, "recovery"), [
+    { date: "2026-08-27T00:00:00Z", value: 71 }
+  ])
+})
+
+test("empty trend copy distinguishes missing data from an unavailable endpoint", () => {
+  const unavailable = { trendUnavailable: { sleep: true } }
+
+  assert.equal(Model.trendEmptyMessage(unavailable, "sleep"), "Trend temporarily unavailable")
+  assert.equal(Model.trendEmptyMessage(unavailable, "recovery"), "No scored data in the last 7 days")
+})

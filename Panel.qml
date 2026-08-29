@@ -396,6 +396,7 @@ Panel {
               maximum: Model.trendMaximum(root.trendMetric)
               digits: Model.trendDigits(root.trendMetric)
               colorMode: root.trendMetric
+              emptyText: Model.trendEmptyMessage(root.snapshotData, root.trendMetric)
               foreground: root.foreground
               accent: Color.accent
               urgent: root.urgent

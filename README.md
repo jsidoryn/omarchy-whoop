@@ -1,6 +1,6 @@
 # WHOOP for Omarchy
 
-A demo-first Omarchy bar plugin for today's WHOOP recovery, strain, sleep, and seven-day recovery trend. It is useful immediately with realistic preview data, then switches to your own data after a guided OAuth setup.
+A demo-first Omarchy bar plugin for today's WHOOP recovery, strain, sleep, and cycleable seven-day trends for all three scores. It is useful immediately with realistic preview data, then switches to your own data after a guided OAuth setup.
 
 The collector is written in Ruby and uses only Ruby's standard library. Credentials are stored by `secret-tool` in the desktop keyring; they are never written to `shell.json`, this repository, or a cache file.
 
@@ -10,7 +10,7 @@ The collector is written in Ruby and uses only Ruby's standard library. Credenti
 - Left-click opens the full panel.
 - Middle-click or right-click refreshes.
 - In the panel, press `D` to cycle through primed, balanced, strained, and pending states.
-- Press `C` to start setup, `R` to refresh, and `Esc` to close.
+- Press `T` to cycle Recovery, Sleep, and Strain trends; press `C` to start setup, `R` to refresh, and `Esc` to close.
 - The panel keeps stale data visible if a refresh fails and reports the error inline.
 
 The plugin starts in demo mode automatically. You can review every state and interaction before creating a WHOOP developer app.

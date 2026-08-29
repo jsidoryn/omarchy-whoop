@@ -62,6 +62,9 @@ class ContractTest < Minitest::Test
     assert panel.include?(%(id: trendButton))
     assert panel.include?(%(Model.nextTrend(root.trendMetric)))
     assert panel.include?(%(Model.trendValues(root.snapshotData, root.trendMetric)))
+    assert panel.include?(%(Model.trendEmptyMessage(root.snapshotData, root.trendMetric)))
+    assert panel.include?(%(onClicked: root.cycleTrend()))
+    assert panel.include?(%(text === "t" || text === "T"))
   end
 
   def test_qml_contains_no_literal_hex_colors_or_plaintext_credentials

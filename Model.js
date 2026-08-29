@@ -60,6 +60,11 @@ function trendDigits(metric) {
   return metric === "strain" ? 1 : 0
 }
 
+function trendEmptyMessage(snapshot, metric) {
+  var unavailable = snapshot && snapshot.trendUnavailable ? snapshot.trendUnavailable : {}
+  return unavailable[metric] === true ? "Trend temporarily unavailable" : "No scored data in the last 7 days"
+}
+
 function metric(value, suffix, digits) {
   var parsed = number(value, NaN)
   if (!isFinite(parsed)) return "—"
@@ -107,6 +112,7 @@ if (typeof module !== "undefined") {
     trendValues: trendValues,
     trendMaximum: trendMaximum,
     trendDigits: trendDigits,
+    trendEmptyMessage: trendEmptyMessage,
     metric: metric,
     freshness: freshness,
     tooltip: tooltip,
