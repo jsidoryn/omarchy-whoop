@@ -379,8 +379,7 @@ Panel {
 
               Button {
                 id: trendButton
-                text: Model.trendLabel(root.trendMetric)
-                iconText: "󰒭"
+                text: Model.trendLabel(Model.nextTrend(root.trendMetric))
                 bordered: true
                 focusable: true
                 foreground: root.foreground
@@ -392,6 +391,7 @@ Panel {
 
             WeekStrip {
               Layout.fillWidth: true
+              title: Model.trendLabel(root.trendMetric)
               values: Model.trendValues(root.snapshotData, root.trendMetric)
               maximum: Model.trendMaximum(root.trendMetric)
               digits: Model.trendDigits(root.trendMetric)

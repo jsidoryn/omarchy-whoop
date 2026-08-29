@@ -63,8 +63,18 @@ class ContractTest < Minitest::Test
     assert panel.include?(%(Model.nextTrend(root.trendMetric)))
     assert panel.include?(%(Model.trendValues(root.snapshotData, root.trendMetric)))
     assert panel.include?(%(Model.trendEmptyMessage(root.snapshotData, root.trendMetric)))
+    assert panel.include?(%(title: Model.trendLabel(root.trendMetric)))
+    assert panel.include?(%(text: Model.trendLabel(Model.nextTrend(root.trendMetric))))
     assert panel.include?(%(onClicked: root.cycleTrend()))
     assert panel.include?(%(text === "t" || text === "T"))
+
+    trend_button = panel.match(/Button \{\s+id: trendButton(?<body>.*?)\n\s+\}/m)
+    assert trend_button
+    refute trend_button[:body].include?("iconText:")
+
+    strip = File.read(File.join(ROOT, "WeekStrip.qml"))
+    assert strip.include?(%(property string title: ""))
+    assert strip.include?(%(text: root.title.toUpperCase()))
   end
 
   def test_qml_contains_no_literal_hex_colors_or_plaintext_credentials
