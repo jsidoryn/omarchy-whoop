@@ -5,7 +5,7 @@ A demo-first Omarchy bar plugin for today's WHOOP recovery, strain, sleep, and c
 The collector is written in Ruby and uses only Ruby's standard library. Credentials are stored by `secret-tool` in the desktop keyring; they are never written to `shell.json`, this repository, or a cache file.
 
 > [!NOTE]
-> This project is an early preview. Its demo experience and OAuth integration are automated-test covered, but the first connection to a real WHOOP account is still being validated.
+> This project is an early preview. Its demo experience and OAuth integration are automated-test covered, and the authorization flow is being validated against real WHOOP accounts.
 
 ## What it feels like
 
@@ -32,13 +32,15 @@ For local development:
 omarchy plugin add /path/to/omarchy-whoop --enable
 ```
 
-Requirements are the stock Omarchy environment with Quickshell plugin support, `/usr/bin/ruby`, and `secret-tool` from `libsecret`. No gems, build step, daemon, or elevated privileges are required.
+Stock Omarchy includes Quickshell plugin support, `/usr/bin/ruby`, `secret-tool`, and a desktop keyring. Setup verifies the required keyring command. No gems, build step, daemon, package installation, or elevated privileges are required.
 
 ## Connect WHOOP
 
+See the complete [setup and troubleshooting guide](https://jsidoryn.github.io/omarchy-whoop/setup/).
+
 First, create an app in the [WHOOP Developer Dashboard](https://developer-dashboard.whoop.com/). Configure it with:
 
-- Redirect URL: `whoop://omarchy/callback`
+- Redirect URL: `io.github.jsidoryn.omarchy-whoop://oauth/callback`
 - Scopes: `offline`, `read:cycles`, `read:recovery`, `read:sleep`
 
 Then open the WHOOP panel and choose **Connect WHOOP**, or run:
@@ -47,7 +49,9 @@ Then open the WHOOP panel and choose **Connect WHOOP**, or run:
 ~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop setup
 ```
 
-The setup wizard asks for the app's Client ID and Client Secret, opens WHOOP authorization in your browser, and asks you to paste the final callback URL. Because the callback uses a custom `whoop://` scheme, the browser may say it cannot open the final address; this is expected. Copy the complete address from the browser's address bar and return to the terminal.
+The setup wizard temporarily registers **WHOOP for Omarchy** as the per-user handler for that callback URL, asks for the app's Client ID and Client Secret, and opens WHOOP authorization in your browser. After you grant access, allow the browser to open WHOOP for Omarchy. The callback is delivered directly to the waiting Ruby process and setup continues automatically; there is no URL to copy.
+
+Registration follows the Linux `x-scheme-handler` desktop convention and does not require `sudo`. The plugin refuses to replace an existing handler for the same scheme. Its desktop entry contains only the installed helper path—never credentials or WHOOP data—and is removed after setup succeeds or ordinarily fails. The desktop launcher briefly passes the callback URL to that helper as a process argument; it then crosses an owner-only socket under `$XDG_RUNTIME_DIR` without being saved.
 
 On success, the wizard stores one credential bundle in the keyring and immediately fetches the first live snapshot. Access tokens are refreshed automatically. WHOOP rotates refresh tokens, so the plugin serializes refreshes and atomically replaces the complete keyring value.
 
@@ -71,6 +75,13 @@ To revoke WHOOP access and remove the local keyring item:
 
 ```bash
 ~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop disconnect
+```
+
+The callback handler is temporary. Inspect or remove a residual handler after an interrupted setup:
+
+```bash
+~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop callback-handler status
+~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop callback-handler remove
 ```
 
 ## Configure
@@ -105,6 +116,7 @@ omarchy-shell shell toggle io.github.jsidoryn.whoop '{}'
 ## Privacy and API behavior
 
 Read the full [Privacy Policy](https://jsidoryn.github.io/omarchy-whoop/privacy/).
+For the complete local footprint, trust boundaries, and installer responsibilities, read [Installation, architecture, and security](https://jsidoryn.github.io/omarchy-whoop/security/).
 
 - Requests go directly from your machine to `api.prod.whoop.com` over HTTPS.
 - Only cycle, recovery, and sleep read scopes are requested, plus `offline` for refresh tokens.
@@ -142,7 +154,7 @@ Disconnect first if you want to revoke access and clear the credential bundle, t
 omarchy plugin remove io.github.jsidoryn.whoop
 ```
 
-Removing the plugin alone does not intentionally erase credentials, which makes accidental uninstall/reinstall recoverable. Use `disconnect` for explicit credential deletion.
+Removing the plugin alone does not intentionally erase credentials, which makes accidental uninstall/reinstall recoverable. The temporary callback registration normally removes itself. After a power loss or forced termination during setup, run `callback-handler status` and `callback-handler remove` before removing the plugin if a residual registration remains.
 
 ## Architecture
 
@@ -150,13 +162,13 @@ Removing the plugin alone does not intentionally erase credentials, which makes 
 - `BarWidget.qml` renders the compact bar entry and hosts the popup.
 - `Panel.qml` is the keyboard-friendly detail and setup experience.
 - `bin/whoop` is the stable QML-to-Ruby interface and emits one JSON snapshot.
-- `lib/omarchy_whoop/` handles OAuth, keyring access, API calls, token rotation, normalization, and demos.
+- `lib/omarchy_whoop/` handles OAuth, the local callback handoff, keyring access, API calls, token rotation, normalization, and demos.
 
 The helper's JSON is a private plugin contract. The UI never reads credentials and the Ruby helper never draws UI.
 
 ## Current limitation
 
-The OAuth flow and WHOOP payload handling are covered by automated tests and checked against the current WHOOP v2 documentation. A real account connection still needs to be exercised with your developer credentials, because the repository deliberately contains none.
+The OAuth flow and WHOOP payload handling are covered by automated tests and checked against the current WHOOP v2 documentation. The repository deliberately contains no developer credentials or real health fixtures.
 
 For support, [open an issue](https://github.com/jsidoryn/omarchy-whoop/issues). Please use [private vulnerability reporting](https://github.com/jsidoryn/omarchy-whoop/security/advisories/new) for security-sensitive reports and never include WHOOP credentials or health data in a public issue.
 

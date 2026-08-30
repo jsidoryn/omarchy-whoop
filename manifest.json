@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.jsidoryn.whoop",
   "name": "WHOOP",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Jason Sidoryn",
   "license": "MIT",
   "description": "Recovery, strain, and sleep from WHOOP in the Omarchy bar.",

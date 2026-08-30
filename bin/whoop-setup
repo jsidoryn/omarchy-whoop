@@ -1,0 +1,18 @@
+#!/bin/bash
+
+script_dir=$(cd "$(dirname "$0")" && pwd)
+
+if "$script_dir/whoop" setup; then
+  exit 0
+fi
+
+if : 2>/dev/null <>/dev/tty; then
+  printf '\n\033[31m● Setup did not complete.\033[0m The error above explains what to correct.\n' >/dev/tty
+  printf 'Press any key to close...' >/dev/tty
+  read -rsn 1 </dev/tty
+  echo >/dev/tty
+fi
+
+# Omarchy's presentation wrapper shows its generic success screen for every
+# status except 130. Returning 130 keeps a failed setup visibly failed.
+exit 130

@@ -14,22 +14,23 @@ class OAuthTest < Minitest::Test
 
   def test_authorization_url_uses_eight_character_state_and_minimal_scopes
     oauth = OmarchyWhoop::OAuth.new(http: nil)
-    url = URI(oauth.authorization_url(client_id: "client", redirect_uri: "whoop://omarchy/callback", state: "Ab12Cd34"))
+    redirect_uri = OmarchyWhoop::CallbackHandler::REDIRECT_URI
+    url = URI(oauth.authorization_url(client_id: "client", redirect_uri: redirect_uri, state: "Ab12Cd34"))
     params = URI.decode_www_form(url.query).to_h
 
     assert_equal "client", params.fetch("client_id")
-    assert_equal "whoop://omarchy/callback", params.fetch("redirect_uri")
+    assert_equal redirect_uri, params.fetch("redirect_uri")
     assert_equal "Ab12Cd34", params.fetch("state")
     assert_equal "offline read:cycles read:recovery read:sleep", params.fetch("scope")
-    assert_raises(ArgumentError) { oauth.authorization_url(client_id: "client", redirect_uri: "whoop://omarchy/callback", state: "short") }
+    assert_raises(ArgumentError) { oauth.authorization_url(client_id: "client", redirect_uri: redirect_uri, state: "short") }
   end
 
   def test_callback_requires_matching_state
     oauth = OmarchyWhoop::OAuth.new(http: nil)
-    redirect_uri = "whoop://omarchy/callback"
-    assert_equal "code-123", oauth.callback_code("whoop://omarchy/callback?code=code-123&state=Ab12Cd34", expected_state: "Ab12Cd34", redirect_uri: redirect_uri)
+    redirect_uri = OmarchyWhoop::CallbackHandler::REDIRECT_URI
+    assert_equal "code-123", oauth.callback_code("#{redirect_uri}?code=code-123&state=Ab12Cd34", expected_state: "Ab12Cd34", redirect_uri: redirect_uri)
     assert_raises(OmarchyWhoop::AuthError) do
-      oauth.callback_code("whoop://omarchy/callback?code=code-123&state=Wrong000", expected_state: "Ab12Cd34", redirect_uri: redirect_uri)
+      oauth.callback_code("#{redirect_uri}?code=code-123&state=Wrong000", expected_state: "Ab12Cd34", redirect_uri: redirect_uri)
     end
     assert_raises(OmarchyWhoop::AuthError) do
       oauth.callback_code("https://example.com/callback?code=code-123&state=Ab12Cd34", expected_state: "Ab12Cd34", redirect_uri: redirect_uri)
@@ -40,7 +41,7 @@ class OAuthTest < Minitest::Test
     http = RecordingHttp.new
     oauth = OmarchyWhoop::OAuth.new(http: http)
 
-    oauth.exchange(client_id: "id", client_secret: "secret", redirect_uri: "whoop://omarchy/callback", code: "code")
+    oauth.exchange(client_id: "id", client_secret: "secret", redirect_uri: OmarchyWhoop::CallbackHandler::REDIRECT_URI, code: "code")
 
     args, kwargs = http.request_args
     assert_equal [:post, OmarchyWhoop::OAuth::TOKEN_URL], args
