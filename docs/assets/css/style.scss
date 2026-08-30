@@ -1,0 +1,22 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media print {
+  table {
+    display: table;
+    overflow: visible;
+  }
+}
