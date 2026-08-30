@@ -78,42 +78,46 @@ module OmarchyWhoop
 
     def setup
       ensure_keyring!
-      @output.puts "Registering the per-user WHOOP callback handler…"
+      @output.puts "Registering a temporary per-user WHOOP callback handler…"
       @callback_handler.register!
-      heading("Connect WHOOP to Omarchy")
-      @output.puts <<~TEXT
-        Before continuing, create an app in the WHOOP Developer Dashboard:
-
-          https://developer-dashboard.whoop.com/
-
-        Use this exact redirect URL:
-
-          #{REDIRECT_URI}
-
-        Enable these scopes:
-
-          #{OAuth::SCOPES.join("  ")}
-
-        This plugin stores one credential bundle in your system keyring. It never
-        writes credentials to shell.json, the plugin folder, or its data cache.
-      TEXT
-      prompt("Press Enter when your WHOOP app is ready")
-      client_id = prompt("Client ID: ").strip
-      raise ConfigurationError, "Client ID cannot be empty." if client_id.empty?
-      client_secret = secret_prompt("Client Secret: ").strip
-      raise ConfigurationError, "Client Secret cannot be empty." if client_secret.empty?
-
-      state = SecureRandom.alphanumeric(8)
-      url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:)
-      callback = @callback_handler.capture do
-        @output.puts "\nOpening WHOOP authorization in your browser…"
-        opened = @opener.call(url)
-        @output.puts "\nIf the browser did not open, visit:\n\n  #{url}" if opened == false
+      callback = begin
+        heading("Connect WHOOP to Omarchy")
         @output.puts <<~TEXT
+          Before continuing, create an app in the WHOOP Developer Dashboard:
 
-          Approve access in WHOOP, then allow the browser to open WHOOP for
-          Omarchy. You will return to this terminal automatically.
+            https://developer-dashboard.whoop.com/
+
+          Use this exact redirect URL:
+
+            #{REDIRECT_URI}
+
+          Enable these scopes:
+
+            #{OAuth::SCOPES.join("  ")}
+
+          This plugin stores one credential bundle in your system keyring. It never
+          writes credentials to shell.json, the plugin folder, or its data cache.
         TEXT
+        prompt("Press Enter when your WHOOP app is ready")
+        client_id = prompt("Client ID: ").strip
+        raise ConfigurationError, "Client ID cannot be empty." if client_id.empty?
+        client_secret = secret_prompt("Client Secret: ").strip
+        raise ConfigurationError, "Client Secret cannot be empty." if client_secret.empty?
+
+        state = SecureRandom.alphanumeric(8)
+        url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:)
+        @callback_handler.capture do
+          @output.puts "\nOpening WHOOP authorization in your browser…"
+          opened = @opener.call(url)
+          @output.puts "\nIf the browser did not open, visit:\n\n  #{url}" if opened == false
+          @output.puts <<~TEXT
+
+            Approve access in WHOOP, then allow the browser to open WHOOP for
+            Omarchy. You will return to this terminal automatically.
+          TEXT
+        end
+      ensure
+        @callback_handler.unregister!
       end
       code = @oauth.callback_code(callback, expected_state: state, redirect_uri: REDIRECT_URI)
       tokens = @oauth.exchange(client_id:, client_secret:, redirect_uri: REDIRECT_URI, code:)

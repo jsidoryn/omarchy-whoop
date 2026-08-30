@@ -66,6 +66,13 @@ class CliTest < Minitest::Test
     end
   end
 
+  class CaptureFailingCallbackHandler < SetupCallbackHandler
+    def capture
+      yield
+      raise OmarchyWhoop::AuthError, "WHOOP authorization timed out."
+    end
+  end
+
   class SetupApi
     def snapshot(_token)
       {
@@ -142,7 +149,8 @@ class CliTest < Minitest::Test
     assert_equal "refresh-token", store.bundle.fetch("refresh_token")
     assert_equal 1, opened.length
     assert_equal ["setupFinished"], notified
-    assert callback_handler.registered
+    refute callback_handler.registered
+    assert callback_handler.removed
     assert_match(/Enable these scopes/, output.string)
     assert_match(/#{Regexp.escape(OmarchyWhoop::CallbackHandler::REDIRECT_URI)}/, output.string)
     assert_match(/return to this terminal automatically/i, output.string)
@@ -157,6 +165,7 @@ class CliTest < Minitest::Test
     store = SetupStore.new
     notified = []
 
+    callback_handler = SetupCallbackHandler.new
     status = OmarchyWhoop::Cli.new(
       ["setup"],
       input: input,
@@ -165,15 +174,38 @@ class CliTest < Minitest::Test
       store: store,
       oauth: SetupOAuth.new,
       api: FailingSetupApi.new,
-      callback_handler: SetupCallbackHandler.new,
+      callback_handler: callback_handler,
       opener: ->(_url) { true },
       notifier: ->(method) { notified << method }
     ).run
 
     assert_equal 1, status
+    assert callback_handler.removed
     assert_equal ["setupFinished"], notified
     assert_equal "refresh-token", store.bundle.fetch("refresh_token")
     assert_match(/temporarily unavailable/i, error.string)
+  end
+
+  def test_setup_removes_the_temporary_handler_when_authorization_fails
+    input = StringIO.new("\nclient-id\nclient-secret\n")
+    error = StringIO.new
+    callback_handler = CaptureFailingCallbackHandler.new
+
+    status = OmarchyWhoop::Cli.new(
+      ["setup"],
+      input: input,
+      output: StringIO.new,
+      error: error,
+      store: SetupStore.new,
+      oauth: SetupOAuth.new,
+      callback_handler: callback_handler,
+      opener: ->(_url) { true }
+    ).run
+
+    assert_equal 1, status
+    refute callback_handler.registered
+    assert callback_handler.removed
+    assert_match(/authorization timed out/i, error.string)
   end
 
   def test_oauth_callback_forwards_the_url_to_the_waiting_setup
