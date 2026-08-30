@@ -102,6 +102,31 @@ class PresenterTest < Minitest::Test
     assert_equal "2026-08-29T12:00:00Z", result.dig("trends", "sleep").last.fetch("date")
   end
 
+  def test_strain_trend_uses_cycle_end_date_and_snapshot_date_for_open_cycle
+    fetched_at = Time.parse("2026-08-30T23:00:00Z")
+    cycle_records = [
+      {"id" => 3, "start" => "2026-08-30T14:01:03Z", "end" => nil, "score_state" => "SCORED", "score" => {"strain" => 0.3}},
+      {"id" => 2, "start" => "2026-08-25T13:51:59Z", "end" => "2026-08-26T13:47:59Z", "score_state" => "SCORED", "score" => {"strain" => 11.8}},
+      {"id" => 1, "start" => "2026-08-24T14:44:33Z", "end" => "2026-08-25T13:51:59Z", "score_state" => "SCORED", "score" => {"strain" => 4.1}}
+    ]
+
+    result = OmarchyWhoop::Presenter.new.snapshot(
+      cycle: cycle_records.first,
+      recovery: {"score_state" => "PENDING_SCORE"},
+      sleep: {"score_state" => "PENDING_SCORE"},
+      history: {"records" => []},
+      cycle_history: {"records" => cycle_records},
+      sleep_history: {"records" => []},
+      fetched_at:
+    )
+
+    assert_equal [
+      "2026-08-25T13:51:59Z",
+      "2026-08-26T13:47:59Z",
+      "2026-08-30T23:00:00Z"
+    ], result.dig("trends", "strain").map { |day| day.fetch("date") }
+  end
+
   def test_snapshot_marks_only_the_unavailable_trend
     result = OmarchyWhoop::Presenter.new.snapshot(
       cycle: {"id" => 1, "start" => "2026-08-29T00:00:00Z"},
