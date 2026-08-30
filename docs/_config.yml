@@ -3,3 +3,5 @@ description: A local-first WHOOP statistics plugin for Omarchy
 theme: jekyll-theme-minimal
 url: https://jsidoryn.github.io
 baseurl: /omarchy-whoop
+plugin_version: 0.2.0
+repository_url: https://github.com/jsidoryn/omarchy-whoop
