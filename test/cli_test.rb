@@ -73,6 +73,18 @@ class CliTest < Minitest::Test
     end
   end
 
+  class BusyCallbackHandler < SetupCallbackHandler
+    def capture
+      raise OmarchyWhoop::ConfigurationError, "Another WHOOP setup is already waiting for browser authorization."
+    end
+  end
+
+  class CleanupFailingCallbackHandler < SetupCallbackHandler
+    def unregister!
+      raise Errno::EACCES, "mimeapps.list"
+    end
+  end
+
   class SetupApi
     def snapshot(_token)
       {
@@ -206,6 +218,49 @@ class CliTest < Minitest::Test
     refute callback_handler.registered
     assert callback_handler.removed
     assert_match(/authorization timed out/i, error.string)
+  end
+
+  def test_setup_does_not_touch_the_handler_when_another_setup_owns_the_lock
+    callback_handler = BusyCallbackHandler.new
+    error = StringIO.new
+
+    status = OmarchyWhoop::Cli.new(
+      ["setup"],
+      input: StringIO.new,
+      output: StringIO.new,
+      error: error,
+      store: SetupStore.new,
+      oauth: SetupOAuth.new,
+      callback_handler: callback_handler
+    ).run
+
+    assert_equal 1, status
+    refute callback_handler.registered
+    refute callback_handler.removed
+    assert_match(/Another WHOOP setup/, error.string)
+  end
+
+  def test_setup_preserves_success_when_temporary_handler_cleanup_fails
+    callback_handler = CleanupFailingCallbackHandler.new
+    store = SetupStore.new
+    error = StringIO.new
+
+    status = OmarchyWhoop::Cli.new(
+      ["setup"],
+      input: StringIO.new("\nclient-id\nclient-secret\n"),
+      output: StringIO.new,
+      error: error,
+      store: store,
+      oauth: SetupOAuth.new,
+      api: SetupApi.new,
+      callback_handler: callback_handler,
+      opener: ->(_url) { true }
+    ).run
+
+    assert_equal 0, status
+    assert_equal "refresh-token", store.bundle.fetch("refresh_token")
+    assert_match(/cleanup failed/i, error.string)
+    assert_match(/callback-handler remove/, error.string)
   end
 
   def test_oauth_callback_forwards_the_url_to_the_waiting_setup

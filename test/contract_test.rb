@@ -89,8 +89,12 @@ class ContractTest < Minitest::Test
   def test_panel_uses_the_setup_wrapper_that_preserves_failures
     panel = File.read(File.join(ROOT, "Panel.qml"))
 
+    wrapper = File.join(ROOT, "bin/whoop-setup")
+
     assert panel.include?(%(Qt.resolvedUrl("bin/whoop-setup")))
-    refute panel.include?(%(service.helper) + " setup")
+    refute panel.match?(/shellQuote\(service\.helper\).*setup/)
+    assert File.executable?(wrapper)
+    assert File.read(wrapper).include?("exit 130")
   end
 
   def test_manifest_and_ruby_versions_match

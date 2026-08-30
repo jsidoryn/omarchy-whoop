@@ -237,6 +237,8 @@ module OmarchyWhoop
     def remove_association_from(path)
       return unless File.file?(path)
 
+      path = File.realpath(path) if File.symlink?(path)
+
       section = ""
       changed = false
       lines = File.readlines(path, chomp: true).filter_map do |line|

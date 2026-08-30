@@ -78,35 +78,38 @@ module OmarchyWhoop
 
     def setup
       ensure_keyring!
-      @output.puts "Registering a temporary per-user WHOOP callback handler…"
-      @callback_handler.register!
+      registered = false
+      client_id = client_secret = state = nil
       callback = begin
-        heading("Connect WHOOP to Omarchy")
-        @output.puts <<~TEXT
-          Before continuing, create an app in the WHOOP Developer Dashboard:
-
-            https://developer-dashboard.whoop.com/
-
-          Use this exact redirect URL:
-
-            #{REDIRECT_URI}
-
-          Enable these scopes:
-
-            #{OAuth::SCOPES.join("  ")}
-
-          This plugin stores one credential bundle in your system keyring. It never
-          writes credentials to shell.json, the plugin folder, or its data cache.
-        TEXT
-        prompt("Press Enter when your WHOOP app is ready")
-        client_id = prompt("Client ID: ").strip
-        raise ConfigurationError, "Client ID cannot be empty." if client_id.empty?
-        client_secret = secret_prompt("Client Secret: ").strip
-        raise ConfigurationError, "Client Secret cannot be empty." if client_secret.empty?
-
-        state = SecureRandom.alphanumeric(8)
-        url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:)
         @callback_handler.capture do
+          @output.puts "Registering a temporary per-user WHOOP callback handler…"
+          @callback_handler.register!
+          registered = true
+          heading("Connect WHOOP to Omarchy")
+          @output.puts <<~TEXT
+            Before continuing, create an app in the WHOOP Developer Dashboard:
+
+              https://developer-dashboard.whoop.com/
+
+            Use this exact redirect URL:
+
+              #{REDIRECT_URI}
+
+            Enable these scopes:
+
+              #{OAuth::SCOPES.join("  ")}
+
+            This plugin stores one credential bundle in your system keyring. It never
+            writes credentials to shell.json, the plugin folder, or its data cache.
+          TEXT
+          prompt("Press Enter when your WHOOP app is ready")
+          client_id = prompt("Client ID: ").strip
+          raise ConfigurationError, "Client ID cannot be empty." if client_id.empty?
+          client_secret = secret_prompt("Client Secret: ").strip
+          raise ConfigurationError, "Client Secret cannot be empty." if client_secret.empty?
+
+          state = SecureRandom.alphanumeric(8)
+          url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:)
           @output.puts "\nOpening WHOOP authorization in your browser…"
           opened = @opener.call(url)
           @output.puts "\nIf the browser did not open, visit:\n\n  #{url}" if opened == false
@@ -117,7 +120,14 @@ module OmarchyWhoop
           TEXT
         end
       ensure
-        @callback_handler.unregister!
+        if registered
+          begin
+            @callback_handler.unregister!
+          rescue StandardError => cleanup_error
+            @error.puts "WHOOP: temporary callback handler cleanup failed: #{cleanup_error.message}"
+            @error.puts "Run `bin/whoop callback-handler remove` after setup completes."
+          end
+        end
       end
       code = @oauth.callback_code(callback, expected_state: state, redirect_uri: REDIRECT_URI)
       tokens = @oauth.exchange(client_id:, client_secret:, redirect_uri: REDIRECT_URI, code:)

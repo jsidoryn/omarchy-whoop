@@ -221,6 +221,29 @@ class CallbackHandlerTest < Minitest::Test
     end
   end
 
+  def test_unregister_preserves_a_symlinked_mimeapps_file
+    Dir.mktmpdir do |directory|
+      handler = build_handler(directory, runner: DesktopRunner.new)
+      handler.register!
+      target = File.join(directory, "managed-mimeapps.list")
+      mimeapps = File.join(directory, "config", "mimeapps.list")
+      FileUtils.mkdir_p(File.dirname(mimeapps))
+      File.write(target, <<~MIMEAPPS)
+        [Default Applications]
+        #{OmarchyWhoop::CallbackHandler::MIME_TYPE}=#{OmarchyWhoop::CallbackHandler::DESKTOP_ID};other.desktop;
+      MIMEAPPS
+      File.symlink(target, mimeapps)
+
+      handler.unregister!
+
+      assert File.symlink?(mimeapps)
+      assert_equal target, File.realpath(mimeapps)
+      content = File.read(target)
+      assert content.include?("#{OmarchyWhoop::CallbackHandler::MIME_TYPE}=other.desktop;")
+      refute content.include?(OmarchyWhoop::CallbackHandler::DESKTOP_ID)
+    end
+  end
+
   private
 
   def build_handler(directory, runner:, wait_seconds: 1)
