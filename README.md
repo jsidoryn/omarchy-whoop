@@ -32,9 +32,11 @@ For local development:
 omarchy plugin add /path/to/omarchy-whoop --enable
 ```
 
-Requirements are the stock Omarchy environment with Quickshell plugin support, `/usr/bin/ruby`, and `secret-tool` from `libsecret`. No gems, build step, daemon, or elevated privileges are required.
+Stock Omarchy includes Quickshell plugin support, `/usr/bin/ruby`, `secret-tool`, and a desktop keyring. Setup verifies the required keyring command. No gems, build step, daemon, package installation, or elevated privileges are required.
 
 ## Connect WHOOP
+
+See the complete [setup and troubleshooting guide](https://jsidoryn.github.io/omarchy-whoop/setup/).
 
 First, create an app in the [WHOOP Developer Dashboard](https://developer-dashboard.whoop.com/). Configure it with:
 
@@ -47,9 +49,9 @@ Then open the WHOOP panel and choose **Connect WHOOP**, or run:
 ~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop setup
 ```
 
-The setup wizard registers **WHOOP for Omarchy** as the per-user handler for that callback URL, asks for the app's Client ID and Client Secret, and opens WHOOP authorization in your browser. After you grant access, allow the browser to open WHOOP for Omarchy. The callback is delivered directly to the waiting Ruby process and setup continues automatically; there is no URL to copy.
+The setup wizard temporarily registers **WHOOP for Omarchy** as the per-user handler for that callback URL, asks for the app's Client ID and Client Secret, and opens WHOOP authorization in your browser. After you grant access, allow the browser to open WHOOP for Omarchy. The callback is delivered directly to the waiting Ruby process and setup continues automatically; there is no URL to copy.
 
-Registration follows the Linux `x-scheme-handler` desktop convention and does not require `sudo`. The plugin refuses to replace an existing handler for the same scheme. Its desktop entry contains only the installed helper path—never credentials or WHOOP data. The desktop launcher briefly passes the callback URL to that helper as a process argument; it then crosses an owner-only socket under `$XDG_RUNTIME_DIR` without being saved.
+Registration follows the Linux `x-scheme-handler` desktop convention and does not require `sudo`. The plugin refuses to replace an existing handler for the same scheme. Its desktop entry contains only the installed helper path—never credentials or WHOOP data—and is removed after setup succeeds or ordinarily fails. The desktop launcher briefly passes the callback URL to that helper as a process argument; it then crosses an owner-only socket under `$XDG_RUNTIME_DIR` without being saved.
 
 On success, the wizard stores one credential bundle in the keyring and immediately fetches the first live snapshot. Access tokens are refreshed automatically. WHOOP rotates refresh tokens, so the plugin serializes refreshes and atomically replaces the complete keyring value.
 
@@ -75,7 +77,7 @@ To revoke WHOOP access and remove the local keyring item:
 ~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop disconnect
 ```
 
-Inspect or remove the per-user callback handler independently:
+The callback handler is temporary. Inspect or remove a residual handler after an interrupted setup:
 
 ```bash
 ~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop callback-handler status
@@ -114,6 +116,7 @@ omarchy-shell shell toggle io.github.jsidoryn.whoop '{}'
 ## Privacy and API behavior
 
 Read the full [Privacy Policy](https://jsidoryn.github.io/omarchy-whoop/privacy/).
+For the complete local footprint, trust boundaries, and installer responsibilities, read [Installation, architecture, and security](https://jsidoryn.github.io/omarchy-whoop/security/).
 
 - Requests go directly from your machine to `api.prod.whoop.com` over HTTPS.
 - Only cycle, recovery, and sleep read scopes are requested, plus `offline` for refresh tokens.
@@ -148,11 +151,10 @@ Disconnect first if you want to revoke access and clear the credential bundle, t
 
 ```bash
 ~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop disconnect
-~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop callback-handler remove
 omarchy plugin remove io.github.jsidoryn.whoop
 ```
 
-Removing the plugin alone does not intentionally erase credentials, which makes accidental uninstall/reinstall recoverable. It also cannot run cleanup after its files have been removed, so run `callback-handler remove` first to remove its desktop registration.
+Removing the plugin alone does not intentionally erase credentials, which makes accidental uninstall/reinstall recoverable. The temporary callback registration normally removes itself. After a power loss or forced termination during setup, run `callback-handler status` and `callback-handler remove` before removing the plugin if a residual registration remains.
 
 ## Architecture
 
