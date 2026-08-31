@@ -7,6 +7,9 @@ title: Setup and troubleshooting
 
 WHOOP for Omarchy starts with local demo data. Connecting your account requires a WHOOP developer application that you own; the plugin does not provide or share a central client application.
 
+<div class="setup-grid">
+<section markdown="1">
+
 ## Requirements
 
 - A current Omarchy installation with Quickshell plugin support.
@@ -18,6 +21,9 @@ WHOOP for Omarchy starts with local demo data. Connecting your account requires 
   ```
 
 Stock Omarchy includes Ruby, `secret-tool`, and a desktop keyring. The setup command verifies the required keyring command before requesting credentials. It does not install packages or request elevated privileges.
+
+</section>
+<section markdown="1">
 
 ## 1. Create the WHOOP application
 
@@ -49,6 +55,9 @@ https://jsidoryn.github.io/omarchy-whoop/privacy/
 ```
 
 Save the application, then keep its Client ID and Client Secret available for the next step. Treat the Client Secret as a credential; do not post it in an issue or include it in a shell command.
+
+</section>
+</div>
 
 ## 2. Run setup
 
