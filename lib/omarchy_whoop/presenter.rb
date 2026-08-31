@@ -53,9 +53,14 @@ module OmarchyWhoop
           "remHours" => hours(stage["total_rem_sleep_time_milli"])
         },
         "trends" => {
-          "recovery" => scored_trend(history, date_key: "created_at", precision: 0, oldest_date: oldest_trend_date) { |item| item.dig("score", "recovery_score") },
-          "sleep" => scored_trend(sleep_history, date_key: "end", precision: 0, oldest_date: oldest_trend_date, skip_naps: true) { |item| item.dig("score", "sleep_performance_percentage") },
-          "strain" => scored_trend(cycle_history, date_key: "start", precision: 1, oldest_date: oldest_trend_date) { |item| item.dig("score", "strain") }
+          "recovery" => scored_trend(history, date: "created_at", precision: 0, oldest_date: oldest_trend_date) { |item| item.dig("score", "recovery_score") },
+          "sleep" => scored_trend(sleep_history, date: "end", precision: 0, oldest_date: oldest_trend_date, skip_naps: true) { |item| item.dig("score", "sleep_performance_percentage") },
+          "strain" => scored_trend(
+            cycle_history,
+            date: ->(item) { item["end"] || (item["id"] == cycle["id"] ? fetched_at.iso8601 : item["start"]) },
+            precision: 1,
+            oldest_date: oldest_trend_date
+          ) { |item| item.dig("score", "strain") }
         },
         "trendUnavailable" => {
           "recovery" => history["unavailable"] == true,
@@ -90,15 +95,15 @@ module OmarchyWhoop
       %w[baseline_milli need_from_sleep_debt_milli need_from_recent_strain_milli need_from_recent_nap_milli].sum { |key| number(needed[key]) || 0 }
     end
 
-    def scored_trend(collection, date_key:, precision:, oldest_date:, skip_naps: false)
+    def scored_trend(collection, date:, precision:, oldest_date:, skip_naps: false)
       Array(collection["records"]).filter_map do |item|
         next unless item["score_state"] == "SCORED"
         next if skip_naps && item["nap"] == true
-        date = item[date_key].to_s
-        next unless in_date_window?(date, oldest_date)
+        trend_date = (date.respond_to?(:call) ? date.call(item) : item[date]).to_s
+        next unless in_date_window?(trend_date, oldest_date)
         value = number(yield(item), integer: precision.zero?, precision: precision.zero? ? nil : precision)
         next if value.nil?
-        {"date" => date, "value" => value}
+        {"date" => trend_date, "value" => value}
       end.first(7).sort_by { |day| day["date"].to_s }
     end
 
