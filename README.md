@@ -156,6 +156,15 @@ omarchy plugin remove io.github.jsidoryn.whoop
 
 Removing the plugin alone does not intentionally erase credentials, which makes accidental uninstall/reinstall recoverable. The temporary callback registration normally removes itself. After a power loss or forced termination during setup, run `callback-handler status` and `callback-handler remove` before removing the plugin if a residual registration remains.
 
+To reinstall while keeping the existing WHOOP connection, skip `disconnect` and run:
+
+```bash
+omarchy plugin remove io.github.jsidoryn.whoop
+omarchy plugin add https://github.com/jsidoryn/omarchy-whoop --enable
+```
+
+See the [setup guide's removal and reinstall instructions](https://jsidoryn.github.io/omarchy-whoop/setup/#remove-and-reinstall-the-plugin) for the difference between a normal reinstall and a completely clean reinstall.
+
 ## Architecture
 
 - `Service.qml` owns one polling process and shared state across bar surfaces.

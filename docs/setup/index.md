@@ -110,6 +110,37 @@ If you intentionally want to remove the existing authorization first:
 
 Disconnect attempts to revoke access at WHOOP and removes the local keyring item even if the network is unavailable.
 
+## Remove and reinstall the plugin
+
+For a normal reinstall, remove the installed plugin and add it again from the public repository:
+
+```bash
+omarchy plugin remove io.github.jsidoryn.whoop
+omarchy plugin add https://github.com/jsidoryn/omarchy-whoop --enable
+```
+
+The remove command unloads the plugin from Omarchy and deletes its installed Git checkout at `~/.config/omarchy/plugins/io.github.jsidoryn.whoop/`. It intentionally keeps the WHOOP credential bundle in your desktop keyring, so the newly installed copy should reconnect without another authorization flow.
+
+For a completely clean reinstall, disconnect before removing the plugin:
+
+```bash
+~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop disconnect
+~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop status
+```
+
+`disconnect` attempts to revoke access at WHOOP and always removes the local credential bundle. If either command fails, stop and resolve the error before removing the plugin. Continue only after `status` reports `"connected":false`.
+
+If you ran `disconnect` while offline or could not confirm that WHOOP accepted the revocation, also remove the authorization from WHOOP before continuing. The helper cannot guarantee remote revocation in those cases.
+
+After confirming the plugin is disconnected, remove and add it again:
+
+```bash
+omarchy plugin remove io.github.jsidoryn.whoop
+omarchy plugin add https://github.com/jsidoryn/omarchy-whoop --enable
+```
+
+After a clean reinstall, reuse your existing WHOOP application and repeat steps 2–3 above to authorize the plugin again. Run `disconnect` before `plugin remove`, because the helper used to revoke access is inside the installed plugin directory.
+
 ## Troubleshooting
 
 ### The panel still shows demo data
