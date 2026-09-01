@@ -189,9 +189,13 @@ module OmarchyWhoop
     end
 
     def disconnect
-      Client.new(store: @store, oauth: @oauth, api: @api).disconnect
+      result = Client.new(store: @store, oauth: @oauth, api: @api).disconnect
       notify_shell("setupFinished")
-      @output.puts "WHOOP credentials were removed from the system keyring."
+      if result == :already_disconnected
+        @output.puts "WHOOP is already disconnected. No credentials were found in the system keyring."
+      else
+        @output.puts "WHOOP credentials were removed from the system keyring."
+      end
     end
 
     def ensure_keyring!

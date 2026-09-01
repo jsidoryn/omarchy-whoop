@@ -15,6 +15,12 @@ class CliTest < Minitest::Test
     def write(value) = @bundle = value.dup
   end
 
+  class MissingStore
+    def available? = true
+    def read = nil
+    def clear = raise "clear should not be called when credentials are already missing"
+  end
+
   class SetupOAuth
     attr_reader :exchange_args, :authorization_args, :callback_state
 
@@ -128,6 +134,26 @@ class CliTest < Minitest::Test
     ).run
 
     assert_equal "primed", JSON.parse(output.string).fetch("demoScenario")
+  end
+
+  def test_disconnect_is_successful_when_already_disconnected
+    output = StringIO.new
+    error = StringIO.new
+    notified = []
+
+    status = OmarchyWhoop::Cli.new(
+      ["disconnect"],
+      output: output,
+      error: error,
+      store: MissingStore.new,
+      notifier: ->(method) { notified << method }
+    ).run
+
+    assert_equal 0, status
+    assert_equal "", error.string
+    assert_equal ["setupFinished"], notified
+    assert_match(/already disconnected/i, output.string)
+    assert_match(/no credentials were found/i, output.string)
   end
 
   def test_setup_guides_oauth_without_printing_credentials
