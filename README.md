@@ -41,7 +41,9 @@ See the complete [setup and troubleshooting guide](https://jsidoryn.github.io/om
 First, create an app in the [WHOOP Developer Dashboard](https://developer-dashboard.whoop.com/). Configure it with:
 
 - Redirect URL: `io.github.jsidoryn.omarchy-whoop://oauth/callback`
-- Scopes: `offline`, `read:cycles`, `read:recovery`, `read:sleep`
+- Dashboard scopes: `read:cycles`, `read:recovery`, `read:sleep`
+
+The WHOOP dashboard does not offer an `offline` checkbox. The plugin adds `offline` to the authorization request automatically so WHOOP can issue a refresh token.
 
 Then open the WHOOP panel and choose **Connect WHOOP**, or run:
 

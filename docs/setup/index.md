@@ -29,7 +29,7 @@ Stock Omarchy includes Ruby, `secret-tool`, and a desktop keyring. The setup com
 
 Create an application in the WHOOP Developer Dashboard and configure it with the following values.
 
-**Redirect URL**
+### Redirect URL
 
 ```text
 io.github.jsidoryn.omarchy-whoop://oauth/callback
@@ -37,18 +37,21 @@ io.github.jsidoryn.omarchy-whoop://oauth/callback
 
 The value must match exactly, including the scheme and path.
 
-**Scopes**
+### Scopes
 
 ```text
-offline
 read:cycles
 read:recovery
 read:sleep
 ```
 
-`offline` permits token renewal without repeated browser authorization. The other scopes provide the cycle, recovery, sleep, HRV, resting heart rate, and history data displayed by the plugin. Do not enable additional scopes for this integration.
+Select those three scopes in the WHOOP Developer Dashboard. They provide the cycle, recovery, sleep, HRV, resting heart rate, and history data displayed by the plugin. Do not enable the profile, workout, body-measurement, or write scopes.
 
-The dashboard also requires a privacy-policy URL. Use:
+The dashboard does not offer an `offline` checkbox. The plugin adds `offline` to the authorization request automatically so WHOOP can issue a refresh token and keep the connection working without repeated browser authorization.
+
+### Privacy policy
+
+The dashboard requires a privacy-policy URL. Use:
 
 ```text
 https://jsidoryn.github.io/omarchy-whoop/privacy/
