@@ -21,7 +21,7 @@ Panel {
 
   readonly property var fallbackSnapshot: ({
     state: "loading", mode: "demo", message: "Loading WHOOP",
-    recovery: ({ score: null }), cycle: ({}), sleep: ({}), week: []
+    recovery: ({ score: null }), cycle: ({}), sleep: ({}), trends: ({})
   })
   readonly property var service: whoopService
   readonly property var snapshotData: service && service.snapshot ? service.snapshot : fallbackSnapshot

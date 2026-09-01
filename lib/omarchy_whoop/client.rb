@@ -61,6 +61,8 @@ module OmarchyWhoop
 
     private
 
+    # Lives beside the OAuth socket under $XDG_RUNTIME_DIR/omarchy-whoop/ so the
+    # generic file name cannot collide with another program's lock.
     def default_lock_path
       runtime_directory = ENV.fetch("XDG_RUNTIME_DIR", "").strip
       if runtime_directory.empty?
@@ -70,13 +72,14 @@ module OmarchyWhoop
         unless stat.directory? && stat.uid == Process.uid && (stat.mode & 0o077).zero?
           raise ConfigurationError, "WHOOP fallback runtime directory is not private: #{runtime_directory}"
         end
+        return File.join(runtime_directory, "refresh.lock")
       end
 
-      File.join(runtime_directory, "refresh.lock")
+      File.join(runtime_directory, "omarchy-whoop", "refresh.lock")
     end
 
     def with_lock
-      FileUtils.mkdir_p(File.dirname(@lock_path))
+      FileUtils.mkdir_p(File.dirname(@lock_path), mode: 0o700)
       flags = File::RDWR | File::CREAT
       flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
       File.open(@lock_path, flags, 0o600) do |file|

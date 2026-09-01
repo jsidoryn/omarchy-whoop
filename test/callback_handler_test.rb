@@ -56,6 +56,17 @@ class CallbackHandlerTest < Minitest::Test
     end
   end
 
+  def test_escapes_the_helper_path_in_the_desktop_exec_line
+    Dir.mktmpdir do |directory|
+      handler = build_handler(directory, runner: DesktopRunner.new, helper_path: '/odd "path"/100%/$HOME/`x`/bin/whoop')
+
+      handler.register!
+
+      exec_line = File.read(handler.desktop_file).lines.find { |line| line.start_with?("Exec=") }
+      assert_equal %q(Exec="/odd \"path\"/100%%/\$HOME/\`x\`/bin/whoop" oauth-callback %u), exec_line.chomp
+    end
+  end
+
   def test_refuses_to_replace_an_existing_scheme_handler
     Dir.mktmpdir do |directory|
       runner = DesktopRunner.new(current: "some-other-app.desktop")
@@ -91,6 +102,24 @@ class CallbackHandlerTest < Minitest::Test
     end
   end
 
+  def test_ignores_callbacks_with_the_wrong_state_until_the_expected_one_arrives
+    Dir.mktmpdir do |directory|
+      handler = build_handler(directory, runner: DesktopRunner.new, wait_seconds: 2)
+      ready = Queue.new
+      wrong = "#{OmarchyWhoop::CallbackHandler::REDIRECT_URI}?code=forged&state=Wrong000"
+      expected = "#{OmarchyWhoop::CallbackHandler::REDIRECT_URI}?code=ready&state=Ab12Cd34"
+      received = nil
+
+      listener = Thread.new { received = handler.capture(expected_state: "Ab12Cd34") { ready << true } }
+      ready.pop
+      handler.deliver(wrong)
+      handler.deliver(expected)
+      listener.join
+
+      assert_equal expected, received
+    end
+  end
+
   def test_rejects_delivery_when_no_setup_is_waiting
     Dir.mktmpdir do |directory|
       handler = build_handler(directory, runner: DesktopRunner.new)
@@ -100,6 +129,24 @@ class CallbackHandlerTest < Minitest::Test
       end
 
       assert_match(/No WHOOP setup is waiting/, error.message)
+    end
+  end
+
+  def test_rejects_a_foreign_url_before_contacting_the_socket
+    Dir.mktmpdir do |directory|
+      handler = build_handler(directory, runner: DesktopRunner.new, wait_seconds: 2)
+      ready = Queue.new
+      callback = "#{OmarchyWhoop::CallbackHandler::REDIRECT_URI}?code=ready&state=Ab12Cd34"
+      received = nil
+
+      listener = Thread.new { received = handler.capture { ready << true } }
+      ready.pop
+      error = assert_raises(OmarchyWhoop::AuthError) { handler.deliver("https://example.com/oauth/callback?code=x&state=Ab12Cd34") }
+      handler.deliver(callback)
+      listener.join
+
+      assert_match(/does not match/i, error.message)
+      assert_equal callback, received
     end
   end
 
@@ -246,9 +293,9 @@ class CallbackHandlerTest < Minitest::Test
 
   private
 
-  def build_handler(directory, runner:, wait_seconds: 1)
+  def build_handler(directory, runner:, wait_seconds: 1, helper_path: "/plugin/bin/whoop")
     OmarchyWhoop::CallbackHandler.new(
-      helper_path: "/plugin/bin/whoop",
+      helper_path: helper_path,
       data_home: File.join(directory, "data"),
       config_home: File.join(directory, "config"),
       runtime_dir: File.join(directory, "runtime"),

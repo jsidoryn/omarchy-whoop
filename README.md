@@ -5,7 +5,7 @@ A demo-first Omarchy bar plugin for today's WHOOP recovery, strain, sleep, and c
 The collector is written in Ruby and uses only Ruby's standard library. Credentials are stored by `secret-tool` in the desktop keyring; they are never written to `shell.json`, this repository, or a cache file.
 
 > [!NOTE]
-> This project is an early preview. Its demo experience and OAuth integration are automated-test covered, and the authorization flow is being validated against real WHOOP accounts.
+> This project is an early preview. The demo experience, OAuth flow, and WHOOP payload handling are covered by automated tests and have been exercised end to end against a real WHOOP account, but expect rough edges and report anything surprising.
 
 ## What it feels like
 
@@ -53,7 +53,7 @@ Then open the WHOOP panel and choose **Connect WHOOP**, or run:
 
 The setup wizard temporarily registers **WHOOP for Omarchy** as the per-user handler for that callback URL, asks for the app's Client ID and Client Secret, and opens WHOOP authorization in your browser. After you grant access, allow the browser to open WHOOP for Omarchy. The callback is delivered directly to the waiting Ruby process and setup continues automatically; there is no URL to copy.
 
-Registration follows the Linux `x-scheme-handler` desktop convention and does not require `sudo`. The plugin refuses to replace an existing handler for the same scheme. Its desktop entry contains only the installed helper path—never credentials or WHOOP data—and is removed after setup succeeds or ordinarily fails. The desktop launcher briefly passes the callback URL to that helper as a process argument; it then crosses an owner-only socket under `$XDG_RUNTIME_DIR` without being saved.
+Registration follows the Linux `x-scheme-handler` desktop convention and does not require `sudo`. The plugin refuses to replace an existing handler for the same scheme. Its desktop entry contains only the installed helper path—never credentials or WHOOP data—and is removed after setup succeeds or ordinarily fails. The desktop launcher briefly passes the callback URL to that helper as a process argument, where it is visible in the process list to any local user for the fraction of a second until the helper relays it over an owner-only socket under `$XDG_RUNTIME_DIR`. The authorization code in that URL is single-use, bound to this plugin's PKCE verifier, and expires within minutes; it is never saved.
 
 On success, the wizard stores one credential bundle in the keyring and immediately fetches the first live snapshot. Access tokens are refreshed automatically. WHOOP rotates refresh tokens, so the plugin serializes refreshes and atomically replaces the complete keyring value.
 
@@ -138,7 +138,7 @@ qmllint -I /usr/share/omarchy/shell \
   Service.qml BarWidget.qml Panel.qml RecoveryRing.qml MetricTile.qml WeekStrip.qml
 ```
 
-The stock `/usr/bin/ruby` is intentionally used in production and tests. The Ruby test harness is bundled because Omarchy's stock Ruby does not need to include Minitest.
+The stock `/usr/bin/ruby` is intentionally used in production and tests. A small Minitest-compatible harness is bundled because Omarchy's stock Ruby does not include Minitest.
 
 To reload an installed development copy:
 
@@ -156,16 +156,7 @@ Disconnect first if you want to revoke access and clear the credential bundle, t
 omarchy plugin remove io.github.jsidoryn.whoop
 ```
 
-Removing the plugin alone does not intentionally erase credentials, which makes accidental uninstall/reinstall recoverable. The temporary callback registration normally removes itself. After a power loss or forced termination during setup, run `callback-handler status` and `callback-handler remove` before removing the plugin if a residual registration remains.
-
-To reinstall while keeping the existing WHOOP connection, skip `disconnect` and run:
-
-```bash
-omarchy plugin remove io.github.jsidoryn.whoop
-omarchy plugin add https://github.com/jsidoryn/omarchy-whoop --enable
-```
-
-See the [setup guide's removal and reinstall instructions](https://jsidoryn.github.io/omarchy-whoop/setup/#remove-and-reinstall-the-plugin) for the difference between a normal reinstall and a completely clean reinstall.
+Removing the plugin alone deliberately keeps the keyring credentials, so an accidental uninstall/reinstall is recoverable: skip `disconnect`, remove, and `omarchy plugin add … --enable` again. The temporary callback registration normally removes itself; if setup was interrupted by a power loss or forced termination, run `callback-handler status` and `callback-handler remove` first. See the [setup guide](https://jsidoryn.github.io/omarchy-whoop/setup/#remove-and-reinstall-the-plugin) for a completely clean reinstall.
 
 ## Architecture
 
@@ -177,11 +168,9 @@ See the [setup guide's removal and reinstall instructions](https://jsidoryn.gith
 
 The helper's JSON is a private plugin contract. The UI never reads credentials and the Ruby helper never draws UI.
 
-## Current limitation
+## Support
 
-The OAuth flow and WHOOP payload handling are covered by automated tests and checked against the current WHOOP v2 documentation. The repository deliberately contains no developer credentials or real health fixtures.
-
-For support, [open an issue](https://github.com/jsidoryn/omarchy-whoop/issues). Please use [private vulnerability reporting](https://github.com/jsidoryn/omarchy-whoop/security/advisories/new) for security-sensitive reports and never include WHOOP credentials or health data in a public issue.
+The repository deliberately contains no developer credentials or real health fixtures, so bug reports need to describe what you saw rather than attach data. For support, [open an issue](https://github.com/jsidoryn/omarchy-whoop/issues). Please use [private vulnerability reporting](https://github.com/jsidoryn/omarchy-whoop/security/advisories/new) for security-sensitive reports and never include WHOOP credentials or health data in a public issue.
 
 ## License
 

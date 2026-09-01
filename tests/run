@@ -1,11 +1,16 @@
 #!/bin/bash
-set -euo pipefail
+# Runs every suite and reports the combined result, so one failing file does
+# not hide failures in the files after it.
+set -uo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 RUBY_BIN=${RUBY_BIN:-/usr/bin/ruby}
+failed=0
 
 for test_file in test/*_test.rb; do
-  "$RUBY_BIN" -Itest "$test_file"
+  "$RUBY_BIN" -Itest "$test_file" || failed=1
 done
-node --test tests/*.test.js
+node --test tests/*.test.js || failed=1
+
+exit "$failed"

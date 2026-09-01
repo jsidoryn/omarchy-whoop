@@ -10,8 +10,6 @@ module OmarchyWhoop
     ACCOUNT = "credentials"
     LABEL = "Omarchy WHOOP credentials"
 
-    Result = Struct.new(:stdout, :stderr, :success?)
-
     def initialize(runner: nil)
       @runner = runner || method(:run)
     end
@@ -63,7 +61,7 @@ module OmarchyWhoop
       stdout, stderr, status = Timeout.timeout(30) do
         Open3.capture3(*argv, stdin_data: stdin_data.to_s)
       end
-      Result.new(stdout, stderr, status.success?)
+      Subprocess::Result.new(stdout, stderr, status.success?)
     rescue Timeout::Error
       raise ConfigurationError, "secret-tool timed out. Unlock your keyring and try again."
     end
@@ -74,9 +72,6 @@ module OmarchyWhoop
       raise ConfigurationError, "secret-tool could not run: #{error.message}"
     end
 
-    def concise(value, fallback)
-      line = value.to_s.lines.map(&:strip).find { |item| !item.empty? }
-      line.nil? ? fallback : "#{fallback}: #{line[0, 180]}"
-    end
+    def concise(value, fallback) = Subprocess.concise(value, fallback)
   end
 end

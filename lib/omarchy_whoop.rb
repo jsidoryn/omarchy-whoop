@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "omarchy_whoop/errors"
+require_relative "omarchy_whoop/subprocess"
 require_relative "omarchy_whoop/callback_handler"
 require_relative "omarchy_whoop/secret_store"
 require_relative "omarchy_whoop/http"

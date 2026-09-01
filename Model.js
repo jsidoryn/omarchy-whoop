@@ -16,7 +16,7 @@ function barLabel(snapshot) {
   var data = snapshot || {}
   var score = data.recovery ? number(data.recovery.score, -1) : -1
   if ((data.state === "ok" || data.state === "demo") && score >= 0) return String(Math.round(score))
-  if (data.state === "pending") return "…"
+  if (data.state === "pending" || data.state === "loading") return "…"
   return "!"
 }
 
@@ -44,11 +44,6 @@ function trendValues(snapshot, metric) {
   var data = snapshot || {}
   var trends = data.trends || {}
   var values = Array.isArray(trends[metric]) ? trends[metric] : []
-  if (values.length === 0 && metric === "recovery") {
-    values = safeWeek(data).map(function(day) {
-      return { date: day.date, value: day.value === undefined ? day.score : day.value }
-    })
-  }
   return values.slice(-7)
 }
 
@@ -97,11 +92,6 @@ function tooltip(snapshot, refreshing, serviceStatus, lastError) {
   return String(data.message || "WHOOP is unavailable")
 }
 
-function safeWeek(snapshot) {
-  var week = snapshot && Array.isArray(snapshot.week) ? snapshot.week : []
-  return week.slice(-7)
-}
-
 if (typeof module !== "undefined") {
   module.exports = {
     recoveryBand: recoveryBand,
@@ -115,7 +105,6 @@ if (typeof module !== "undefined") {
     trendEmptyMessage: trendEmptyMessage,
     metric: metric,
     freshness: freshness,
-    tooltip: tooltip,
-    safeWeek: safeWeek
+    tooltip: tooltip
   }
 }

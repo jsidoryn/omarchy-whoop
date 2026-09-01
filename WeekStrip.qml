@@ -20,7 +20,7 @@ BorderSurface {
   readonly property var days: values || []
 
   function pointValue(point) {
-    var value = point && point.value !== undefined ? Number(point.value) : Number(point && point.score || 0)
+    var value = Number(point && point.value)
     return isFinite(value) ? value : 0
   }
 

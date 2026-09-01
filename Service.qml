@@ -15,20 +15,16 @@ Item {
     recovery: ({ score: null }),
     cycle: ({}),
     sleep: ({}),
-    week: []
+    trends: ({})
   })
   property string status: "loading"
   property string message: "Loading WHOOP"
   property bool connected: false
   property bool refreshing: false
-  property bool refreshQueued: false
-  property string pendingDemoScenario: ""
-  property string deferredAction: ""
-  property string deferredScenario: ""
+  // Command to run once the current fetch exits; a later request replaces an earlier one.
+  property var queuedCommand: null
   property string lastError: ""
   property string demoScenario: "primed"
-  property string _stdout: ""
-  property string _stderr: ""
   property double lastFetchStartedAt: 0
   property bool fetchTimedOut: false
 
@@ -67,46 +63,34 @@ Item {
     return !!value
   }
 
-  function command() {
+  function snapshotCommand() {
     if (forceDemo) return [helper, "demo", demoScenario]
     return [helper, "snapshot", "--fallback-demo", demoScenario]
   }
 
   function refresh(force) {
     if (fetchProcess.running) {
-      if (force === true) refreshQueued = true
+      if (force === true) queuedCommand = snapshotCommand()
       return
     }
     if (force !== true && Date.now() - lastFetchStartedAt < 15000) return
-    refreshQueued = false
-    refreshing = true
-    fetchTimedOut = false
-    lastError = ""
-    _stdout = ""
-    _stderr = ""
-    fetchProcess.command = command()
     lastFetchStartedAt = Date.now()
-    fetchProcess.running = true
-    fetchWatchdog.restart()
+    start(snapshotCommand())
   }
 
   function showDemo(scenario) {
     demoScenario = String(scenario || "primed")
-    refreshQueued = false
-    if (fetchProcess.running) {
-      pendingDemoScenario = demoScenario
-      return
-    }
-    startDemo(demoScenario)
+    var command = [helper, "demo", demoScenario]
+    if (fetchProcess.running) queuedCommand = command
+    else start(command)
   }
 
-  function startDemo(scenario) {
+  function start(command) {
+    queuedCommand = null
     refreshing = true
     fetchTimedOut = false
     lastError = ""
-    _stdout = ""
-    _stderr = ""
-    fetchProcess.command = [helper, "demo", String(scenario || "primed")]
+    fetchProcess.command = command
     fetchProcess.running = true
     fetchWatchdog.restart()
   }
@@ -202,14 +186,7 @@ Item {
     id: deferredTimer
     interval: 0
     repeat: false
-    onTriggered: {
-      var action = root.deferredAction
-      var scenario = root.deferredScenario
-      root.deferredAction = ""
-      root.deferredScenario = ""
-      if (action === "demo") root.startDemo(scenario)
-      else if (action === "refresh") root.refresh(true)
-    }
+    onTriggered: if (root.queuedCommand) root.start(root.queuedCommand)
   }
 
   // The service is instantiated once by the shell. Keeping IPC here avoids
@@ -271,39 +248,26 @@ Item {
     stdout: StdioCollector {
       id: outputCollector
       waitForEnd: true
-      onStreamFinished: root._stdout = text
     }
 
     stderr: StdioCollector {
       id: errorCollector
       waitForEnd: true
-      onStreamFinished: root._stderr = text
     }
 
     onExited: function(exitCode) {
       fetchWatchdog.stop()
       root.refreshing = false
-      var output = String(outputCollector.text || root._stdout || "")
+      var output = String(outputCollector.text || "")
       if (root.fetchTimedOut) root.fetchTimedOut = false
       else if (output.trim() !== "") root.apply(output)
       else {
-        var errorText = String(errorCollector.text || root._stderr || "").trim().split("\n")[0]
+        var errorText = String(errorCollector.text || "").trim().split("\n")[0]
         root.status = "error"
         root.message = errorText !== "" ? errorText.substring(0, 180) : "The WHOOP helper produced no data"
         root.lastError = root.message
       }
-      if (root.pendingDemoScenario !== "") {
-        root.deferredScenario = root.pendingDemoScenario
-        root.pendingDemoScenario = ""
-        root.deferredAction = "demo"
-        deferredTimer.restart()
-        return
-      }
-      if (root.refreshQueued) {
-        root.refreshQueued = false
-        root.deferredAction = "refresh"
-        deferredTimer.restart()
-      }
+      if (root.queuedCommand) deferredTimer.restart()
     }
   }
 

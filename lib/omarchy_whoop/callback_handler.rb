@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "open3"
+require "openssl"
 require "socket"
 require "uri"
 
@@ -13,8 +14,6 @@ module OmarchyWhoop
     DESKTOP_ID = "io.github.jsidoryn.omarchy-whoop-oauth.desktop"
     MAX_CALLBACK_BYTES = 8_192
     DEFAULT_WAIT_SECONDS = 300
-
-    Result = Struct.new(:stdout, :stderr, :success?)
 
     attr_reader :desktop_file, :socket_path, :lock_path
 
@@ -82,16 +81,25 @@ module OmarchyWhoop
       current_handler == DESKTOP_ID && File.file?(@desktop_file)
     end
 
-    def capture
+    # Waits for the browser callback. Any web page can navigate to the custom
+    # scheme while setup is waiting, so a callback carrying the wrong state is
+    # discarded and the wait continues rather than aborting the user's setup.
+    def capture(expected_state: nil)
       lock = acquire_lock
       server = open_server
       yield
       deadline = monotonic_time + @wait_seconds
-      wait_until_readable(server, deadline)
-      connection = server.accept
-      validate_callback(read_callback(connection, deadline))
+      loop do
+        wait_until_readable(server, deadline)
+        connection = server.accept
+        begin
+          callback = validate_callback(read_callback(connection, deadline))
+        ensure
+          connection.close
+        end
+        return callback if expected_state.nil? || state_matches?(callback, expected_state)
+      end
     ensure
-      connection&.close
       server&.close
       remove_owned_socket if lock
       lock&.flock(File::LOCK_UN)
@@ -140,8 +148,10 @@ module OmarchyWhoop
       DESKTOP
     end
 
+    # Desktop Entry quoting: backslash-escape the reserved characters inside the
+    # double quotes, and double literal percent signs so they are not field codes.
     def escape_exec(value)
-      value.gsub(/["`$\\]/) { |character| "\\#{character}" }
+      value.gsub(/["`$\\]/) { |character| "\\#{character}" }.gsub("%", "%%")
     end
 
     def open_server
@@ -218,6 +228,11 @@ module OmarchyWhoop
       raise AuthError, "That does not look like a complete WHOOP callback URL."
     end
 
+    def state_matches?(callback, expected_state)
+      state = URI.decode_www_form(URI(callback).query.to_s).to_h["state"].to_s
+      OpenSSL.secure_compare(state, expected_state)
+    end
+
     def atomic_write(path, content, mode:)
       temporary = "#{path}.tmp.#{Process.pid}"
       File.open(temporary, File::WRONLY | File::CREAT | File::TRUNC, mode) { |file| file.write(content) }
@@ -280,12 +295,9 @@ module OmarchyWhoop
 
     def run(argv)
       stdout, stderr, status = Open3.capture3(*argv)
-      Result.new(stdout, stderr, status.success?)
+      Subprocess::Result.new(stdout, stderr, status.success?)
     end
 
-    def concise(value, fallback)
-      line = value.to_s.lines.map(&:strip).find { |item| !item.empty? }
-      line.nil? ? fallback : "#{fallback}: #{line[0, 180]}"
-    end
+    def concise(value, fallback) = Subprocess.concise(value, fallback)
   end
 end

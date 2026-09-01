@@ -67,10 +67,11 @@ module OmarchyWhoop
 
     private
 
+    # precision 0 yields an Integer, so JSON shows 82 rather than 82.0.
     def number(value, integer: false, precision: nil)
       return nil if value.nil?
       numeric = Float(value)
-      return numeric.round if integer
+      return numeric.round if integer || precision == 0
       return numeric.round(precision) if precision
       numeric
     rescue ArgumentError, TypeError
@@ -96,7 +97,7 @@ module OmarchyWhoop
         next if skip_naps && item["nap"] == true
         date = item[date_key].to_s
         next unless in_date_window?(date, oldest_date)
-        value = number(yield(item), integer: precision.zero?, precision: precision.zero? ? nil : precision)
+        value = number(yield(item), precision: precision)
         next if value.nil?
         {"date" => date, "value" => value}
       end.first(7).sort_by { |day| day["date"].to_s }

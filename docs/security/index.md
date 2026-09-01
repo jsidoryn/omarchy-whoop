@@ -37,10 +37,10 @@ The plugin does not install Ruby gems, Node packages, a browser extension, daemo
 2. Ruby opens WHOOP authorization in the default browser and waits on an owner-only Unix socket.
 3. WHOOP returns a short-lived authorization code and the original OAuth state through the custom URI.
 4. Linux launches the plugin's callback helper, which validates the URI and relays it to the waiting setup process.
-5. Setup verifies the state, exchanges the code directly with WHOOP, and removes the temporary desktop handler.
+5. Setup verifies the state, exchanges the code and its PKCE verifier directly with WHOOP, and removes the temporary desktop handler.
 6. The returned credential bundle is stored as one desktop-keyring item.
 
-The callback URL is briefly present as a process argument to the short-lived desktop helper. It is then transferred through the runtime socket and is never written to disk. Like other process arguments, it may be observable by local process-inspection tools available to the same user while that helper runs.
+The callback URL is briefly present as a process argument to the short-lived desktop helper. It is then transferred through the runtime socket and is never written to disk. Like other process arguments, it is visible through `/proc` to any local user or process while that helper runs (typically well under a second). What is exposed is a single-use authorization code that expires within minutes and cannot be redeemed without the PKCE verifier and Client Secret, which never leave the setup process and the keyring.
 
 ### Data refresh
 
@@ -93,11 +93,11 @@ This is a storage boundary, not a per-plugin sandbox. Once the desktop keyring i
 
 The custom URI handler exists only while setup is waiting for authorization and is removed on success and ordinary failure. It contains only the helper path. Registration is per-user, requires no elevation, and refuses to replace another application's handler for the same scheme.
 
-Setup uses an eight-character random OAuth state, validates the returned scheme, host, path, and state, rejects control characters and oversized callbacks, and accepts callbacks only while that setup process owns the runtime socket.
+Setup uses a 32-character random OAuth state and PKCE (`S256`), validates the returned scheme, host, path, and state, rejects control characters and oversized callbacks, ignores callbacks whose state does not match the running setup, and accepts callbacks only while that setup process owns the runtime socket.
 
 ### Owner-only runtime coordination
 
-The OAuth runtime directory is mode `0700`; its socket and lock are mode `0600`. Setup rejects a runtime directory not owned by the current user and prevents concurrent authorization attempts. Token refresh uses a separate owner-only lock so two shell requests cannot rotate the same refresh token concurrently.
+The `$XDG_RUNTIME_DIR/omarchy-whoop/` directory is mode `0700`; its socket and lock files are mode `0600`. Setup rejects a runtime directory not owned by the current user and prevents concurrent authorization attempts. Token refresh uses a separate owner-only `refresh.lock` in the same directory so two shell requests cannot rotate the same refresh token concurrently.
 
 ### No persistent health-data cache
 

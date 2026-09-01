@@ -186,6 +186,22 @@ class ClientTest < Minitest::Test
     end
   end
 
+  def test_default_lock_lives_in_the_plugin_runtime_directory
+    Dir.mktmpdir do |directory|
+      previous_runtime_directory = ENV["XDG_RUNTIME_DIR"]
+      ENV["XDG_RUNTIME_DIR"] = directory
+
+      OmarchyWhoop::Client.new(store: FakeStore.new(nil)).store_credentials("access_token" => "test")
+
+      lock = File.join(directory, "omarchy-whoop", "refresh.lock")
+      assert File.exist?(lock)
+      assert_equal 0, File.stat(File.dirname(lock)).mode & 0o077
+      assert_equal 0, File.stat(lock).mode & 0o077
+    ensure
+      ENV["XDG_RUNTIME_DIR"] = previous_runtime_directory
+    end
+  end
+
   def test_default_fallback_lock_directory_is_owner_only
     Dir.mktmpdir do |directory|
       previous_runtime_directory = ENV.delete("XDG_RUNTIME_DIR")

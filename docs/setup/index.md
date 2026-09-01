@@ -77,7 +77,7 @@ The setup terminal will:
 3. Open WHOOP authorization in the default browser.
 4. Wait for the browser to return the authorization result.
 
-Review the requested scopes on WHOOP's consent screen and select **Grant**. Chromium should then ask whether to open **WHOOP for Omarchy**. Accept that prompt.
+Review the requested scopes on WHOOP's consent screen and select **Grant**. Your browser (Chromium on stock Omarchy) should then ask whether to open **WHOOP for Omarchy**. Accept that prompt.
 
 The browser may remain on WHOOP's grant page after the handoff. This is expected. Use the setup terminal—not the final browser page—as the source of completion status.
 
@@ -105,7 +105,7 @@ The panel should switch from demo data to live data after setup. Press `R`, midd
 
 Run setup again. It creates a new temporary callback handler and replaces the keyring credential bundle only after WHOOP returns a valid token set. Normal token renewal does not require the browser callback handler.
 
-If you intentionally want to remove the existing authorization first:
+Re-running setup does not revoke the previous grant at WHOOP; the old refresh token simply stops being used. To revoke it (for example, after rotating a leaked Client Secret), disconnect first:
 
 ```bash
 ~/.config/omarchy/plugins/io.github.jsidoryn.whoop/bin/whoop disconnect
@@ -167,7 +167,7 @@ If `connected` is `false`, run setup again.
 
 Setup prints the complete WHOOP authorization URL when `xdg-open` fails. Open that URL in the same desktop session while the setup terminal is still waiting. Do not close or restart setup before completing consent; the callback is accepted only by that active setup attempt.
 
-### Chromium asks whether to open WHOOP for Omarchy
+### The browser asks whether to open WHOOP for Omarchy
 
 Accept the prompt. It is the browser's confirmation before passing the custom callback URI to the temporary desktop handler.
 
@@ -175,7 +175,7 @@ If you deny it, restart setup and authorize again. Do not copy the WHOOP consent
 
 ### The browser remains on the grant page
 
-This is normal for a custom application URI. Chromium has handed the callback to the plugin but keeps the last rendered web page open. Confirm completion in the setup terminal, then close the browser tab.
+This is normal for a custom application URI. The browser has handed the callback to the plugin but keeps the last rendered web page open. Confirm completion in the setup terminal, then close the browser tab.
 
 ### `No WHOOP setup is waiting for this callback`
 

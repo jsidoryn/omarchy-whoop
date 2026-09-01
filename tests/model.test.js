@@ -13,6 +13,7 @@ test("bar labels handle live, demo, pending and unavailable states", () => {
   assert.equal(Model.barLabel({ state: "ok", recovery: { score: 82 } }), "82")
   assert.equal(Model.barLabel({ state: "demo", recovery: { score: 67 } }), "67")
   assert.equal(Model.barLabel({ state: "pending", recovery: { score: null } }), "…")
+  assert.equal(Model.barLabel({ state: "loading", recovery: { score: null } }), "…")
   assert.equal(Model.barLabel({ state: "error" }), "!")
 })
 
@@ -78,12 +79,9 @@ test("seven-day trends cycle from recovery through sleep and strain", () => {
   assert.equal(Model.trendDigits("sleep"), 0)
 })
 
-test("recovery trend accepts a snapshot from before the trends contract", () => {
-  const legacy = { week: [{ date: "2026-08-27T00:00:00Z", score: 71 }] }
-
-  assert.deepEqual(Model.trendValues(legacy, "recovery"), [
-    { date: "2026-08-27T00:00:00Z", value: 71 }
-  ])
+test("trend values tolerate a snapshot without trends", () => {
+  assert.deepEqual(Model.trendValues({ state: "loading" }, "recovery"), [])
+  assert.deepEqual(Model.trendValues(null, "sleep"), [])
 })
 
 test("empty trend copy distinguishes missing data from an unavailable endpoint", () => {

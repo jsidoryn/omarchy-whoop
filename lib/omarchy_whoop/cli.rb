@@ -2,8 +2,6 @@
 
 require "io/console"
 require "json"
-require "open3"
-require "securerandom"
 
 module OmarchyWhoop
   class Cli
@@ -66,8 +64,6 @@ module OmarchyWhoop
     private
 
     def snapshot
-      scenario = option_value("--demo")
-      return emit(Demo.snapshot(scenario || "primed", connected: connected?)) if scenario
       fallback = option_value("--fallback-demo") || "primed"
       bundle = @store.read
       return emit(Demo.snapshot(fallback).merge("message" => "Demo data · Connect WHOOP for your stats")) unless bundle
@@ -79,9 +75,11 @@ module OmarchyWhoop
     def setup
       ensure_keyring!
       registered = false
-      client_id = client_secret = state = nil
+      client_id = client_secret = nil
+      state = OAuth.generate_state
+      code_verifier = OAuth.generate_code_verifier
       callback = begin
-        @callback_handler.capture do
+        @callback_handler.capture(expected_state: state) do
           @output.puts "Registering a temporary per-user WHOOP callback handler…"
           @callback_handler.register!
           registered = true
@@ -108,8 +106,7 @@ module OmarchyWhoop
           client_secret = secret_prompt("Client Secret: ").strip
           raise ConfigurationError, "Client Secret cannot be empty." if client_secret.empty?
 
-          state = SecureRandom.alphanumeric(8)
-          url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:)
+          url = @oauth.authorization_url(client_id:, redirect_uri: REDIRECT_URI, state:, code_verifier:)
           @output.puts "\nOpening WHOOP authorization in your browser…"
           opened = @opener.call(url)
           @output.puts "\nIf the browser did not open, visit:\n\n  #{url}" if opened == false
@@ -130,7 +127,7 @@ module OmarchyWhoop
         end
       end
       code = @oauth.callback_code(callback, expected_state: state, redirect_uri: REDIRECT_URI)
-      tokens = @oauth.exchange(client_id:, client_secret:, redirect_uri: REDIRECT_URI, code:)
+      tokens = @oauth.exchange(client_id:, client_secret:, redirect_uri: REDIRECT_URI, code:, code_verifier:)
       bundle = {
         "client_id" => client_id,
         "client_secret" => client_secret,

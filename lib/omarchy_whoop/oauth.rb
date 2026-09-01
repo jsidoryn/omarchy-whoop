@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "digest"
+require "openssl"
+require "securerandom"
 require "uri"
 
 module OmarchyWhoop
@@ -7,13 +10,20 @@ module OmarchyWhoop
     AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth"
     TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token"
     SCOPES = %w[offline read:cycles read:recovery read:sleep].freeze
+    MIN_STATE_LENGTH = 8
 
     def initialize(http: Http.new)
       @http = http
     end
 
-    def authorization_url(client_id:, redirect_uri:, state:)
-      raise ArgumentError, "WHOOP OAuth state must be exactly eight characters" unless state.to_s.length == 8
+    # WHOOP requires at least eight characters of state; more is strictly better.
+    def self.generate_state = SecureRandom.alphanumeric(32)
+
+    # RFC 7636 verifier: 32 random bytes, base64url without padding (43 characters).
+    def self.generate_code_verifier = SecureRandom.urlsafe_base64(32)
+
+    def authorization_url(client_id:, redirect_uri:, state:, code_verifier:)
+      raise ArgumentError, "WHOOP OAuth state must be at least #{MIN_STATE_LENGTH} characters" if state.to_s.length < MIN_STATE_LENGTH
 
       uri = URI(AUTH_URL)
       uri.query = URI.encode_www_form(
@@ -21,7 +31,9 @@ module OmarchyWhoop
         redirect_uri: redirect_uri,
         response_type: "code",
         scope: SCOPES.join(" "),
-        state: state
+        state: state,
+        code_challenge: code_challenge(code_verifier),
+        code_challenge_method: "S256"
       )
       uri.to_s
     end
@@ -34,7 +46,7 @@ module OmarchyWhoop
       end
       params = URI.decode_www_form(uri.query.to_s).to_h
       raise AuthError, "WHOOP returned an OAuth error: #{params['error']}" if params["error"]
-      raise AuthError, "The callback state did not match. Start setup again." unless secure_equal?(params["state"], expected_state)
+      raise AuthError, "The callback state did not match. Start setup again." unless OpenSSL.secure_compare(params["state"].to_s, expected_state.to_s)
       raise AuthError, "The callback URL did not contain an authorization code." if params["code"].to_s.empty?
 
       params.fetch("code")
@@ -42,13 +54,14 @@ module OmarchyWhoop
       raise AuthError, "That does not look like the complete WHOOP callback URL."
     end
 
-    def exchange(client_id:, client_secret:, redirect_uri:, code:)
+    def exchange(client_id:, client_secret:, redirect_uri:, code:, code_verifier:)
       @http.request(:post, TOKEN_URL, form: {
         grant_type: "authorization_code",
         code: code,
         client_id: client_id,
         client_secret: client_secret,
-        redirect_uri: redirect_uri
+        redirect_uri: redirect_uri,
+        code_verifier: code_verifier
       })
     end
 
@@ -66,12 +79,9 @@ module OmarchyWhoop
 
     private
 
-    def secure_equal?(left, right)
-      left = left.to_s
-      right = right.to_s
-      return false unless left.bytesize == right.bytesize
-
-      left.bytes.zip(right.bytes).reduce(0) { |memo, pair| memo | (pair[0] ^ pair[1]) }.zero?
+    # S256 challenge: base64url of the SHA-256 digest, without padding.
+    def code_challenge(code_verifier)
+      Digest::SHA256.base64digest(code_verifier).tr("+/", "-_").delete("=")
     end
   end
 end

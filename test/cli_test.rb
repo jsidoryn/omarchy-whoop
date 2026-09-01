@@ -49,7 +49,7 @@ class CliTest < Minitest::Test
       @registered = true
     end
 
-    def capture
+    def capture(expected_state: nil)
       yield
       "#{OmarchyWhoop::CallbackHandler::REDIRECT_URI}?code=ready"
     end
@@ -73,14 +73,14 @@ class CliTest < Minitest::Test
   end
 
   class CaptureFailingCallbackHandler < SetupCallbackHandler
-    def capture
+    def capture(expected_state: nil)
       yield
       raise OmarchyWhoop::AuthError, "WHOOP authorization timed out."
     end
   end
 
   class BusyCallbackHandler < SetupCallbackHandler
-    def capture
+    def capture(expected_state: nil)
       raise OmarchyWhoop::ConfigurationError, "Another WHOOP setup is already waiting for browser authorization."
     end
   end
@@ -136,6 +136,43 @@ class CliTest < Minitest::Test
     assert_equal "primed", JSON.parse(output.string).fetch("demoScenario")
   end
 
+  def test_snapshot_reports_live_failures_as_a_connected_error_snapshot
+    Dir.mktmpdir do |directory|
+      previous_runtime_directory = ENV["XDG_RUNTIME_DIR"]
+      ENV["XDG_RUNTIME_DIR"] = directory
+      store = SetupStore.new
+      store.write("client_id" => "id-123", "client_secret" => "secret-456", "access_token" => "access-789", "refresh_token" => "refresh-012", "expires_at" => Time.now.to_i + 3600)
+      output = StringIO.new
+
+      status = OmarchyWhoop::Cli.new(["snapshot"], output: output, error: StringIO.new, store: store, api: FailingSetupApi.new).run
+
+      result = JSON.parse(output.string)
+      assert_equal 0, status
+      assert_equal "error", result.fetch("state")
+      assert_equal "live", result.fetch("mode")
+      assert_equal true, result.fetch("connected")
+      assert_match(/temporarily unavailable/i, result.fetch("message"))
+      refute output.string.match?(/id-123|secret-456|access-789|refresh-012/)
+    ensure
+      ENV["XDG_RUNTIME_DIR"] = previous_runtime_directory
+    end
+  end
+
+  def test_status_reports_connection_without_revealing_credentials
+    store = SetupStore.new
+    store.write("client_id" => "id-123", "client_secret" => "secret-456", "access_token" => "access-789", "refresh_token" => "refresh-012", "expires_at" => 1_700_000_000, "scope" => "offline read:recovery")
+    output = StringIO.new
+
+    status = OmarchyWhoop::Cli.new(["status"], output: output, error: StringIO.new, store: store).run
+
+    result = JSON.parse(output.string)
+    assert_equal 0, status
+    assert_equal true, result.fetch("connected")
+    assert_equal 1_700_000_000, result.fetch("expiresAt")
+    assert_equal %w[offline read:recovery], result.fetch("scopes")
+    refute output.string.match?(/id-123|secret-456|access-789|refresh-012/)
+  end
+
   def test_disconnect_is_successful_when_already_disconnected
     output = StringIO.new
     error = StringIO.new
@@ -180,8 +217,9 @@ class CliTest < Minitest::Test
 
     assert_equal 0, status
     assert_equal OmarchyWhoop::Cli::REDIRECT_URI, oauth.authorization_args.fetch(:redirect_uri)
-    assert_equal 8, oauth.authorization_args.fetch(:state).length
+    assert_equal 32, oauth.authorization_args.fetch(:state).length
     assert_equal oauth.authorization_args.fetch(:state), oauth.callback_state
+    assert_equal oauth.authorization_args.fetch(:code_verifier), oauth.exchange_args.fetch(:code_verifier)
     assert_equal "client-id", store.bundle.fetch("client_id")
     assert_equal "client-secret", store.bundle.fetch("client_secret")
     assert_equal "refresh-token", store.bundle.fetch("refresh_token")
