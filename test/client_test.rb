@@ -94,6 +94,16 @@ class ClientTest < Minitest::Test
     end
   end
 
+  class MissingStore
+    attr_reader :cleared
+
+    def read = nil
+
+    def clear
+      @cleared = true
+    end
+  end
+
   def test_refresh_replaces_the_entire_rotating_token_bundle
     store = FakeStore.new({"client_id" => "id", "client_secret" => "secret", "access_token" => "old", "refresh_token" => "old-refresh", "expires_at" => 0, "scope" => OmarchyWhoop::OAuth::SCOPES.join(" ")})
     oauth = FakeOAuth.new
@@ -143,6 +153,16 @@ class ClientTest < Minitest::Test
 
       assert_equal "fresh-access", api.revoked
       assert_nil store.bundle
+    end
+  end
+
+  def test_disconnect_reports_when_credentials_are_already_missing
+    Dir.mktmpdir do |directory|
+      store = MissingStore.new
+      client = OmarchyWhoop::Client.new(store: store, api: FakeApi.new, lock_path: File.join(directory, "refresh.lock"))
+
+      assert_equal :already_disconnected, client.disconnect
+      refute store.cleared
     end
   end
 

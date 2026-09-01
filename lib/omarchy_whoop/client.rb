@@ -39,14 +39,23 @@ module OmarchyWhoop
       with_lock do
         begin
           bundle = @store.read
-          @api.revoke(valid_access_token_unlocked(bundle)) if bundle
         rescue Error, KeyError
           # Local deletion must remain possible when offline, already revoked,
           # or the keyring item is corrupt.
+          @store.clear
+          return :disconnected
+        end
+
+        return :already_disconnected unless bundle
+
+        begin
+          @api.revoke(valid_access_token_unlocked(bundle))
+        rescue Error, KeyError
+          # Local deletion must remain possible when offline or already revoked.
         ensure
           @store.clear
         end
-        true
+        :disconnected
       end
     end
 

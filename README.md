@@ -41,7 +41,9 @@ See the complete [setup and troubleshooting guide](https://jsidoryn.github.io/om
 First, create an app in the [WHOOP Developer Dashboard](https://developer-dashboard.whoop.com/). Configure it with:
 
 - Redirect URL: `io.github.jsidoryn.omarchy-whoop://oauth/callback`
-- Scopes: `offline`, `read:cycles`, `read:recovery`, `read:sleep`
+- Dashboard scopes: `read:cycles`, `read:recovery`, `read:sleep`
+
+The WHOOP dashboard does not offer an `offline` checkbox. The plugin adds `offline` to the authorization request automatically so WHOOP can issue a refresh token.
 
 Then open the WHOOP panel and choose **Connect WHOOP**, or run:
 
@@ -155,6 +157,15 @@ omarchy plugin remove io.github.jsidoryn.whoop
 ```
 
 Removing the plugin alone does not intentionally erase credentials, which makes accidental uninstall/reinstall recoverable. The temporary callback registration normally removes itself. After a power loss or forced termination during setup, run `callback-handler status` and `callback-handler remove` before removing the plugin if a residual registration remains.
+
+To reinstall while keeping the existing WHOOP connection, skip `disconnect` and run:
+
+```bash
+omarchy plugin remove io.github.jsidoryn.whoop
+omarchy plugin add https://github.com/jsidoryn/omarchy-whoop --enable
+```
+
+See the [setup guide's removal and reinstall instructions](https://jsidoryn.github.io/omarchy-whoop/setup/#remove-and-reinstall-the-plugin) for the difference between a normal reinstall and a completely clean reinstall.
 
 ## Architecture
 
