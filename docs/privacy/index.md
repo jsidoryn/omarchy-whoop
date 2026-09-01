@@ -79,6 +79,6 @@ Material changes will be published on this page and the effective date will be u
 
 ## Contact
 
-For privacy questions or requests, contact [jason@katalyst.com.au](mailto:jason@katalyst.com.au). For general support, you may also [open a GitHub issue](https://github.com/jsidoryn/omarchy-whoop/issues), but do not include credentials or health information.
+For privacy questions, requests, or general support, [open a GitHub issue](https://github.com/jsidoryn/omarchy-whoop/issues). Do not include credentials or health information in an issue.
 
 WHOOP for Omarchy is an independent open-source project and is not affiliated with, endorsed by, or sponsored by WHOOP.
